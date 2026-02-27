@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:subagents.cc)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Bash(kill:*)",
+      "Bash(git:*)",
+      "Bash(node:*)",
+      "Write",
+      "Edit",
+      "Read"
+    ]
+  }
+}
