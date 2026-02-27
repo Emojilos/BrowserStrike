@@ -125,7 +125,7 @@
         "Шаг 4: FPS >= 60 (проверить через devtools performance)"
       ],
       "dependencies": ["TASK-003"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-006",

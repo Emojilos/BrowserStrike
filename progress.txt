@@ -1,21 +1,24 @@
 # BrowserStrike — Notes for next iteration
 
 ## Completed this session
-- TASK-003 (client Vite+Three.js setup) was already done from TASK-001, marked as done
-- TASK-004 (Colyseus server) — improved with HTTP health endpoint, verified all test steps pass
-- Added colyseus.js client SDK to packages/client/package.json for future networking
+- TASK-005 (3D scene rendering + prototype Warehouse map)
+  - Created SceneManager.ts: WebGLRenderer, PerspectiveCamera, Scene with fog, shadow maps
+  - Lighting: AmbientLight (0.6) + DirectionalLight with shadows (2048px) + fill light
+  - Created MapBuilder.ts: buildWarehouseMap() with floor (40x40), 4 outer walls, 2 interior walls with gap, 8 crates of varied sizes
+  - Crates placed at spawn areas (NW/SE corners) and mid-map for cover
+  - Refactored main.ts to use SceneManager + MapBuilder
 
 ## Current state
-- TASK-001, TASK-002, TASK-003, TASK-004 all done
+- TASK-001 through TASK-005 all done
 - Server boots on port 2567, responds to HTTP, logs "GameRoom registered"
-- Client builds and type-checks with Three.js + colyseus.js
+- Client builds and type-checks; 3D scene renders with warehouse map
 
 ## Next priority tasks (all deps met)
-- TASK-005: 3D scene with map primitives (depends on TASK-003 ✓)
-- TASK-012: Colyseus State Schema (depends on TASK-004 ✓, TASK-002 ✓)
-- Both are critical priority
+- TASK-012: Colyseus State Schema (depends on TASK-004 ✓, TASK-002 ✓) — critical
+- TASK-006: FPS controller (depends on TASK-005 ✓, TASK-002 ✓) — critical, unblocks movement/physics chain
 
 ## Notes
 - .claude/settings.local.json was updated to allow npm, npx, kill commands
 - Colyseus 0.15.57 is installed; WebSocketTransport uses http.createServer for HTTP responses
 - colyseus.js (client SDK) ^0.15.0 added to client dependencies
+- Scene uses PCFSoftShadowMap, fog (30-60 range), directional light shadow camera covers 25 units
