@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "target": "ES2022",
+    "baseUrl": ".",
+    "paths": {
+      "@browserstrike/shared": ["../shared/src"]
+    }
+  },
+  "include": ["src", "../shared/src"]
+}
