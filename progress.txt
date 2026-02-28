@@ -525,3 +525,23 @@
     - animate() checks fps.input.tabHeld → setVisible() + update()
     - getScoreboardState(): reads all players from Colyseus state, splits by team, sorts by kills
   - TypeScript compiles cleanly for client, server, and shared packages
+
+## Completed this session (continued 14)
+- TASK-035 (Match end screen UI styling and improvements)
+  - The core logic already existed in App.ts showMatchEndScreen() from TASK-026 implementation:
+    - Winner team display, final score, K/D table, Rematch/Quit buttons
+    - Return-to-lobby transition when server status goes back to 'lobby'
+    - matchEnd event listener from server
+  - Added full CSS styling in packages/client/index.html:
+    - .match-end-panel: dark panel (#16213e) with rounded corners, centered layout
+    - .match-end-title: orange (#ff6b00) uppercase with letter-spacing
+    - .match-end-winner: team-colored text (blue for Team A, red for Team B)
+    - .match-end-score: large 2.4rem score display with team colors
+    - .match-end-stats: two-column layout with team-colored headers and player rows
+    - .match-end-buttons: primary (orange) for Rematch, secondary (outline) for Quit
+    - .waiting-text: italic grey for non-admin "Waiting for host..." message
+  - Updated packages/client/src/App.ts showMatchEndScreen():
+    - Added draw case handling (winnerTeam null when scores tied)
+    - Added team-colored CSS class to winner text (team-a-win / team-b-win)
+    - Players sorted by kills descending within each team
+  - TypeScript compiles cleanly for client and server

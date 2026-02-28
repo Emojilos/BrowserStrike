@@ -586,7 +586,7 @@
         "Шаг 4: «Реванш» → возврат в лобби с теми же игроками"
       ],
       "dependencies": ["TASK-026"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-036",

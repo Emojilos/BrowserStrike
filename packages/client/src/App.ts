@@ -252,7 +252,9 @@ export class App {
 
     const scoreA = state?.scoreTeamA ?? 0;
     const scoreB = state?.scoreTeamB ?? 0;
-    const winnerTeam = scoreA > scoreB ? 'A' : 'B';
+    const winnerTeam = scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : null;
+    const winnerText = winnerTeam ? `Team ${winnerTeam} Wins!` : 'Draw!';
+    const winnerClass = winnerTeam === 'A' ? 'team-a-win' : winnerTeam === 'B' ? 'team-b-win' : '';
 
     const playersA: Array<{ nickname: string; kills: number; deaths: number }> = [];
     const playersB: Array<{ nickname: string; kills: number; deaths: number }> = [];
@@ -265,6 +267,8 @@ export class App {
       if (p.team === 'A') playersA.push(entry);
       else if (p.team === 'B') playersB.push(entry);
     });
+    playersA.sort((a, b) => b.kills - a.kills);
+    playersB.sort((a, b) => b.kills - a.kills);
 
     const isAdmin = this.network.sessionId === (state?.adminId ?? '');
 
@@ -273,7 +277,7 @@ export class App {
     screen.innerHTML = `
       <div class="match-end-panel">
         <h1 class="match-end-title">MATCH OVER</h1>
-        <div class="match-end-winner">Team ${winnerTeam} Wins!</div>
+        <div class="match-end-winner ${winnerClass}">${winnerText}</div>
         <div class="match-end-score">
           <span class="team-a-score">${scoreA}</span>
           <span class="score-separator">:</span>
