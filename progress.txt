@@ -1,29 +1,32 @@
 # BrowserStrike — Notes for next iteration
 
 ## Completed this session
-- TASK-008 (First-person weapon model: Desert Eagle)
-  - Created packages/client/src/engine/WeaponModel.ts:
-    - Low-poly Desert Eagle built from BoxGeometry/CylinderGeometry primitives (slide, barrel, muzzle, frame, trigger guard, trigger, grip, magazine base, front/rear sights)
-    - Rendered as overlay scene (separate Three.js scene + camera) so weapon never clips into world geometry
-    - Recoil animation: sin-based kick (up + back + pitch rotation) over 120ms, smooth recovery
-    - Semi-auto fire: single click = single shot, no hold-to-fire (mouseDown edge detection)
-    - Fire rate limiting: 500ms between shots (matches WEAPONS.deagle.fireRate from shared constants)
-    - Weapon positioned in classic FPS lower-right corner (0.25, -0.22, -0.45)
-  - Updated InputManager.ts: added mouseDown tracking (mousedown/mouseup on LMB)
-  - Updated SceneManager.ts: added renderOverlay() for weapon scene (clears depth, renders on top)
-  - Updated main.ts: creates WeaponModel, wires fire input, renders weapon overlay each frame, handles resize for weapon camera aspect
+- TASK-012 (Colyseus State Schema)
+  - Created packages/server/src/schemas/ with 4 schema files + barrel export:
+    - GameState.ts: roomCode, status (GameStatus), settings (SettingsSchema), adminId, scoreTeamA/B, currentRound, roundTimer, players (MapSchema<PlayerSchema>), killFeed (ArraySchema<KillEventSchema>)
+    - PlayerSchema.ts: sessionId, nickname, team, isAlive, hp, position (x/y/z float32), rotation (yaw/pitch float32), currentWeapon, ammo, isReloading, kills, deaths
+    - SettingsSchema.ts: mode (GameMode), mapId, roundsToWin, roundTimeLimit
+    - KillEventSchema.ts: killerNickname, victimNickname, weapon, isHeadshot, timestamp
+  - All schemas use @type() decorators for Colyseus serialization
+  - Added experimentalDecorators: true to server tsconfig.json
+  - Updated GameRoom to use GameState: setState(), generates room code, creates PlayerSchema on join, assigns admin, handles leave/admin reassignment
 
 ## Current state
-- TASK-001 through TASK-008 all done
-- Server boots on port 2567, responds to HTTP, logs "GameRoom registered"
+- TASK-001 through TASK-008 + TASK-012 all done
+- Server boots on port 2567 with full state schema, room code generation, player management
 - Client builds and type-checks; 3D warehouse scene with full FPS controls, gravity, jump, AABB collisions
-- Desert Eagle model visible in lower-right, LMB fires with recoil animation, semi-auto enforced, fire rate limited
+- Desert Eagle model visible in lower-right, LMB fires with recoil animation
 
 ## Next priority tasks (all deps met)
-- TASK-012: Colyseus State Schema (deps: TASK-004 ✓, TASK-002 ✓) — critical, blocks entire multiplayer chain
+- TASK-013: Room system — create/join by code, nickname validation, max 4 players (deps: TASK-012 ✓) — critical, blocks lobby/UI chain
 - TASK-009: Shooting system / raycasting (deps: TASK-008 ✓) — high, muzzle flash + bullet tracer + impact marks
 
 ## Notes
+- @colyseus/schema v2.0.37 uses legacy decorators (experimentalDecorators: true)
+- Room code uses ABCDEFGHJKLMNPQRSTUVWXYZ23456789 charset (no 0/O/1/I confusion)
+- PlayerSchema uses flat float32 for position/rotation (not nested Schema) for bandwidth efficiency
+- GameState.players is MapSchema<PlayerSchema> keyed by sessionId
+- GameState.killFeed is ArraySchema<KillEventSchema>
 - PLAYER_SPEED = 250 u/s, GRAVITY = -20, JUMP_VELOCITY = 8, EYE_HEIGHT = 1.65m
 - PLAYER_RADIUS = 0.3, PLAYER_HEIGHT = 1.8 (collision capsule approximated as AABB)
 - applyMovement() is a pure function — returns new state, doesn't mutate input. Ready for server use.

@@ -5,6 +5,7 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "target": "ES2022",
+    "experimentalDecorators": true,
     "baseUrl": ".",
     "paths": {
       "@browserstrike/shared": ["../shared/src"]
