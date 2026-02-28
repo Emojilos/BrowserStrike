@@ -1,6 +1,20 @@
 # BrowserStrike — Notes for next iteration
 
 ## Completed this session
+- TASK-020 (Position sync: send inputs to server, display remote players)
+  - Created packages/client/src/engine/RemotePlayerManager.ts:
+    - Spawns/despawns Three.js capsule meshes for remote players
+    - Cylinder body + sphere head, team-colored (blue=A, red=B, grey=unassigned)
+    - Updates position + yaw from Colyseus state, auto-recolors on team change
+    - Proper dispose: removes from scene, disposes geometry + material
+  - Updated packages/client/src/App.ts:
+    - Added inputSeq counter, sends InputMessage ('input') to server each frame
+    - sendInput(): builds {seq, keys, yaw, pitch, deltaTime} from FPSController state
+    - Instantiates RemotePlayerManager on PLAYING enter, disposes on leave
+    - setupNetworkListeners(): wires onPlayerAdd/onPlayerRemove/onStateChange
+    - syncRemotePlayers(): reads Colyseus state.players, updates capsule positions
+    - Only sends input when pointer is locked (no spam when unfocused)
+
 - TASK-015 (Server game loop + move/look message handling)
   - Created packages/server/src/physics/CollisionWorld.ts:
     - Server-side collision world (pure math, no Three.js)
@@ -51,15 +65,16 @@
   - Fixed server dev script: added --tsconfig flag to tsx for legacy decorator support
 
 ## Current state
-- TASK-001 through TASK-008 + TASK-009 through TASK-015 all done
+- TASK-001 through TASK-015 + TASK-020 all done
 - Server: boots on 2567, room codes, nicknames, move/look with physics+collisions, game loop at 20Hz
-- Client: NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model
+- Client: NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model, remote player capsules synced via Colyseus
 
 ## Next priority tasks (all deps met)
 - TASK-016: Main Menu UI (deps: TASK-014 done) — critical, blocks lobby
 - TASK-019: Shooting system client (deps: TASK-014 done) — critical
-- TASK-020: Position sync + remote players (deps: TASK-015 done) — critical
 - TASK-018: Game HUD (deps: TASK-014 done) — high
+- TASK-021: Client-side prediction (deps: TASK-020 done) — high
+- TASK-022: Entity interpolation (deps: TASK-020 done) — high
 
 ## Notes
 - Server input handling: per-message processing (not buffered), applies physics + collisions immediately
@@ -88,3 +103,7 @@
 - App exposed as window.app for console testing: app.setState('playing'), app.setState('menu')
 - Screen containers in #ui-root: menu-screen, lobby-screen, playing-screen, match-end-screen
 - Canvas is display:none except when in PLAYING state
+- RemotePlayerManager uses cylinder+sphere (body+head) per remote player, team-colored
+- Input sending: every frame when pointer locked, InputMessage with seq/keys/yaw/pitch/deltaTime
+- Remote player sync: onStateChange reads state.players MapSchema, updates capsule positions
+- onPlayerAdd/onPlayerRemove handle dynamic spawn/despawn of capsule meshes

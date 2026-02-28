@@ -261,7 +261,7 @@
         "Шаг 4: Закрыть один клиент → капсула исчезает во втором"
       ],
       "dependencies": ["TASK-015"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-021",
