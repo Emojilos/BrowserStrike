@@ -212,15 +212,52 @@
     - Broadcasts 'kill' event (KillEvent with killerName, victimName, weaponId, isHeadshot)
     - Console logs kills with weapon and headshot indicator
 
+## Completed this session (continued 5)
+- TASK-026 (Round system: server-side state machine)
+  - Verified fully implemented in packages/server/src/systems/RoundSystem.ts:
+    - State machine: lobby → weapon_select (5s) → countdown (3s via clock.setTimeout) → playing (120s) → round_end (3s) → loop or match_end
+    - enterWeaponSelect(): sets status, increments currentRound, clears weapon selections, starts 5s timer
+    - enterCountdown(): applies weapon selections, spawns players (spawnPlayers()), broadcasts 'countdown', schedules transition to playing via clock.setTimeout
+    - tickPlaying(): decrements roundTimer, checks team elimination (checkTeamElimination()), timer expiry → draw
+    - enterRoundEnd(): updates score for winning team, broadcasts 'roundEnd' (RoundEndEvent)
+    - enterMatchEnd(): determines winner, broadcasts 'matchEnd' (MatchEndEvent), calls onMatchEnd callback
+    - tickRoundEnd(): checks if roundsToWin reached → match_end, else → next weapon_select
+    - selectWeapon(): stores weapon selection during weapon_select phase
+    - spawnPlayers(): resets HP=100, isAlive=true, positions at team spawn points from map config
+    - isPlayable()/isShootingAllowed(): guards input/shoot handlers during countdown/non-playing phases
+    - returnToLobby(): resets all state for rematch
+  - GameRoom integration (packages/server/src/rooms/GameRoom.ts):
+    - RoundSystem instantiated in onCreate(), receives state, clock, broadcast callback
+    - 'startGame' handler calls roundSystem.startGame()
+    - 'selectWeapon' handler validates and forwards to roundSystem.selectWeapon()
+    - 'returnToLobby' handler for admin after match_end
+    - shoot/reload/input handlers gated by roundSystem.isShootingAllowed()/isPlayable()
+    - onTick() calls roundSystem.tick()
+  - Client integration (packages/client/src/App.ts):
+    - checkGameStatus() handles match_end → MATCH_END screen, lobby → LOBBY (rematch)
+    - showMatchEndScreen(): displays winner, score, K/D table, Rematch (admin) / Quit buttons
+    - Network listeners for 'countdown', 'roundStart', 'roundEnd', 'matchEnd' events
+    - syncLobbyState() auto-transitions to PLAYING when status becomes weapon_select/playing
+  - All shared types exist: GameStatus includes all 5 states, RoundEndEvent, MatchEndEvent in network.ts
+  - All constants: WEAPON_SELECT_TIME=5, ROUND_COUNTDOWN=3, ROUND_END_PAUSE=3, ROUND_TIME_LIMIT=120
+  - TypeScript compiles cleanly for both server and client
+
 ## Current state
-- TASK-001 through TASK-020 + TASK-018 + TASK-023 + TASK-024 all done
-- Server: boots on 2567, room codes, nicknames, move/look with physics+collisions, game loop at 20Hz, updateSettings + startGame handlers, shoot handler with ammo/fire-rate validation + server-side hit detection + damage + kill tracking, reload handler with timer
-- Client: Main Menu → Lobby → Playing flow, NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model, shooting system with visual effects + reload, remote player capsules synced via Colyseus, in-game HUD with reload indicator
+- TASK-001 through TASK-020 + TASK-018 + TASK-023 + TASK-024 + TASK-026 all done
+- Server: boots on 2567, room codes, nicknames, move/look with physics+collisions, game loop at 20Hz, updateSettings + startGame handlers, shoot handler with ammo/fire-rate validation + server-side hit detection + damage + kill tracking, reload handler with timer, RoundSystem state machine (weapon_select → countdown → playing → round_end → match_end), selectWeapon handler, returnToLobby handler
+- Client: Main Menu → Lobby → Playing → Match End flow, NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model, shooting system with visual effects + reload, remote player capsules synced via Colyseus, in-game HUD with reload indicator, match end screen with rematch/quit, round event listeners
 
 ## Next priority tasks (all deps met)
 - TASK-021: Client-side prediction (deps: TASK-020 done) — high
 - TASK-022: Entity interpolation (deps: TASK-020 done) — high
-- TASK-026: Round system (deps: TASK-024 done, TASK-017 done) — CRITICAL — now unblocked!
+- TASK-027: Weapon select screen (deps: TASK-026 done, TASK-018 done) — high — now unblocked!
+- TASK-028: SSG-08 model (deps: TASK-023 done) — high
+- TASK-029: MP9 model (deps: TASK-023 done) — high
+- TASK-031: Kill Feed UI (deps: TASK-018 done, TASK-024 done) — medium
+- TASK-032: Scoreboard UI (deps: TASK-018 done) — medium
+- TASK-033: Damage indicator/hitmarker (deps: TASK-018 done, TASK-024 done) — medium
+- TASK-035: Match end screen (deps: TASK-026 done) — medium — now unblocked!
+- TASK-036: MapLoader (deps: TASK-026 done) — medium — now unblocked!
 
 ## Notes
 - Server input handling: per-message processing (not buffered), applies physics + collisions immediately

@@ -393,7 +393,7 @@
         "Шаг 4: Подождать 120с в раунде → round_end (ничья, счёт не меняется)"
       ],
       "dependencies": ["TASK-024", "TASK-017"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-027",

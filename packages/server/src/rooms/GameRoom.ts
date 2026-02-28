@@ -19,6 +19,7 @@ import type {
   GameMode,
   MapId,
   RoundsToWin,
+  WeaponId,
   Vec3,
 } from '@browserstrike/shared';
 import { GameState } from '../schemas/GameState.js';
@@ -28,6 +29,7 @@ import { CollisionWorld } from '../physics/CollisionWorld.js';
 import { buildMapCollisions } from '../physics/mapCollisions.js';
 import { performHitDetection } from '../physics/hitDetection.js';
 import type { HitTarget } from '../physics/hitDetection.js';
+import { RoundSystem } from '../systems/RoundSystem.js';
 
 const NICKNAME_REGEX = /^[A-Za-z0-9_]+$/;
 
@@ -95,6 +97,7 @@ export interface GameRoomOptions {
 export class GameRoom extends Room<GameState> {
   maxClients = MAX_PLAYERS_PER_ROOM;
   private collisionWorld!: CollisionWorld;
+  private roundSystem!: RoundSystem;
 
   onCreate(options: GameRoomOptions) {
     this.setState(new GameState());
@@ -103,6 +106,14 @@ export class GameRoom extends Room<GameState> {
 
     // Build collision world for the current map
     this.collisionWorld = buildMapCollisions(this.state.settings.mapId);
+
+    // Initialize round system
+    this.roundSystem = new RoundSystem(this.state, this.clock, {
+      broadcast: (type, data) => this.broadcast(type, data),
+      onMatchEnd: () => {
+        console.log(`Match ended in room ${this.roomId}`);
+      },
+    });
 
     // --- Message handlers ---
 
@@ -153,11 +164,28 @@ export class GameRoom extends Room<GameState> {
         return;
       }
 
-      this.state.status = 'weapon_select';
+      this.roundSystem.startGame();
       console.log(`Game starting! Status → weapon_select`);
     });
 
+    this.onMessage('selectWeapon', (client, message: unknown) => {
+      if (typeof message !== 'object' || message === null) return;
+      const msg = message as Record<string, unknown>;
+      if (typeof msg.weapon !== 'string') return;
+      if (!WEAPONS[msg.weapon as WeaponId]) return;
+      this.roundSystem.selectWeapon(client.sessionId, msg.weapon as WeaponId);
+    });
+
+    this.onMessage('returnToLobby', (client) => {
+      // Only admin can return to lobby
+      if (client.sessionId !== this.state.adminId) return;
+      if (this.state.status !== 'match_end') return;
+      this.roundSystem.returnToLobby();
+      console.log(`Room ${this.roomId} returned to lobby`);
+    });
+
     this.onMessage('shoot', (client, message: unknown) => {
+      if (!this.roundSystem.isShootingAllowed()) return;
       const player = this.state.players.get(client.sessionId);
       if (!player || !player.isAlive) return;
 
@@ -281,6 +309,7 @@ export class GameRoom extends Room<GameState> {
     });
 
     this.onMessage('reload', (client) => {
+      if (!this.roundSystem.isPlayable()) return;
       const player = this.state.players.get(client.sessionId);
       if (!player || !player.isAlive) return;
       if (player.isReloading) return;
@@ -304,6 +333,7 @@ export class GameRoom extends Room<GameState> {
     });
 
     this.onMessage('input', (client, message: unknown) => {
+      if (!this.roundSystem.isPlayable()) return;
       if (!validateInput(message)) {
         console.warn(`Invalid input from ${client.sessionId}`);
         return;
@@ -360,8 +390,7 @@ export class GameRoom extends Room<GameState> {
   }
 
   private onTick() {
-    // Currently a no-op — movement is processed per-input in the message handler.
-    // Future: round timer, respawn logic, game state transitions.
+    this.roundSystem.tick();
   }
 
   onJoin(client: Client, options: GameRoomOptions) {

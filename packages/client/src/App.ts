@@ -9,7 +9,7 @@ import { MenuScreen } from './ui/MenuScreen';
 import { LobbyScreen } from './ui/LobbyScreen';
 import { GameHUD } from './ui/GameHUD';
 import { PLAYER_HP, ROUND_TIME_LIMIT } from '@browserstrike/shared';
-import type { InputMessage, ShootMessage, Team, GameMode, MapId, RoundsToWin, WeaponId } from '@browserstrike/shared';
+import type { InputMessage, ShootMessage, Team, GameMode, MapId, RoundsToWin, WeaponId, RoundEndEvent, MatchEndEvent } from '@browserstrike/shared';
 
 export enum AppState {
   MENU = 'menu',
@@ -221,6 +221,77 @@ export class App {
       this.syncLobbyState();
       this.lobbyStateInterval = window.setInterval(() => this.syncLobbyState(), 200);
     }
+
+    if (state === AppState.MATCH_END) {
+      this.showMatchEndScreen();
+    }
+  }
+
+  private showMatchEndScreen(): void {
+    const screen = this.screens.get(AppState.MATCH_END);
+    if (!screen) return;
+
+    const room = this.network.currentRoom;
+    const state = room?.state as {
+      scoreTeamA?: number;
+      scoreTeamB?: number;
+      players?: Map<string, { nickname?: string; team?: string; kills?: number; deaths?: number }>;
+      adminId?: string;
+    } | undefined;
+
+    const scoreA = state?.scoreTeamA ?? 0;
+    const scoreB = state?.scoreTeamB ?? 0;
+    const winnerTeam = scoreA > scoreB ? 'A' : 'B';
+
+    const playersA: Array<{ nickname: string; kills: number; deaths: number }> = [];
+    const playersB: Array<{ nickname: string; kills: number; deaths: number }> = [];
+    state?.players?.forEach((p) => {
+      const entry = {
+        nickname: p.nickname ?? 'Unknown',
+        kills: p.kills ?? 0,
+        deaths: p.deaths ?? 0,
+      };
+      if (p.team === 'A') playersA.push(entry);
+      else if (p.team === 'B') playersB.push(entry);
+    });
+
+    const isAdmin = this.network.sessionId === (state?.adminId ?? '');
+
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    screen.innerHTML = `
+      <div class="match-end-panel">
+        <h1 class="match-end-title">MATCH OVER</h1>
+        <div class="match-end-winner">Team ${winnerTeam} Wins!</div>
+        <div class="match-end-score">
+          <span class="team-a-score">${scoreA}</span>
+          <span class="score-separator">:</span>
+          <span class="team-b-score">${scoreB}</span>
+        </div>
+        <div class="match-end-stats">
+          <div class="stats-column">
+            <h3 class="stats-header team-a-header">Team A</h3>
+            ${playersA.map(p => `<div class="stats-row"><span>${esc(p.nickname)}</span><span>${p.kills} / ${p.deaths}</span></div>`).join('')}
+          </div>
+          <div class="stats-column">
+            <h3 class="stats-header team-b-header">Team B</h3>
+            ${playersB.map(p => `<div class="stats-row"><span>${esc(p.nickname)}</span><span>${p.kills} / ${p.deaths}</span></div>`).join('')}
+          </div>
+        </div>
+        <div class="match-end-buttons">
+          ${isAdmin ? '<button id="btn-rematch" class="btn-primary">Rematch</button>' : '<span class="waiting-text">Waiting for host...</span>'}
+          <button id="btn-quit" class="btn-secondary">Quit</button>
+        </div>
+      </div>
+    `;
+
+    screen.querySelector('#btn-rematch')?.addEventListener('click', () => {
+      this.network.send('returnToLobby', {});
+    });
+    screen.querySelector('#btn-quit')?.addEventListener('click', async () => {
+      await this.network.leave();
+      this.setState(AppState.MENU);
+    });
   }
 
   // ── Game loop ──────────────────────────────────────────
@@ -314,8 +385,46 @@ export class App {
       },
       onStateChange: () => {
         this.syncRemotePlayers();
+        this.checkGameStatus();
       },
     });
+
+    // Round events from server
+    this.network.onMessage('countdown', (data: { seconds: number }) => {
+      console.log(`Countdown: ${data.seconds}s`);
+    });
+
+    this.network.onMessage('roundStart', (data: { round: number }) => {
+      console.log(`Round ${data.round} started!`);
+    });
+
+    this.network.onMessage('roundEnd', (data: RoundEndEvent) => {
+      console.log(`Round ended! Winner: Team ${data.winnerTeam} | Score: ${data.scoreA} - ${data.scoreB}`);
+    });
+
+    this.network.onMessage('matchEnd', (data: MatchEndEvent) => {
+      console.log(`Match ended! Winner: Team ${data.winnerTeam} | Final: ${data.finalScoreA} - ${data.finalScoreB}`);
+    });
+  }
+
+  /** Check game status from Colyseus state and handle transitions. */
+  private checkGameStatus(): void {
+    if (!this.network.connected) return;
+    const room = this.network.currentRoom;
+    if (!room) return;
+
+    const state = room.state as { status?: string };
+    const gameStatus = state.status;
+
+    // Transition to match_end screen
+    if (gameStatus === 'match_end' && this.state === AppState.PLAYING) {
+      this.setState(AppState.MATCH_END);
+    }
+
+    // Return to lobby (admin pressed rematch)
+    if (gameStatus === 'lobby' && this.state === AppState.MATCH_END) {
+      this.setState(AppState.LOBBY);
+    }
   }
 
   /** Read all players from Colyseus state and update remote capsule transforms. */
@@ -384,16 +493,16 @@ export class App {
     if (!this.network.connected) return 0;
     const room = this.network.currentRoom;
     if (!room) return 0;
-    const state = room.state as { scoreA?: number };
-    return state.scoreA ?? 0;
+    const state = room.state as { scoreTeamA?: number };
+    return state.scoreTeamA ?? 0;
   }
 
   private getScoreB(): number {
     if (!this.network.connected) return 0;
     const room = this.network.currentRoom;
     if (!room) return 0;
-    const state = room.state as { scoreB?: number };
-    return state.scoreB ?? 0;
+    const state = room.state as { scoreTeamB?: number };
+    return state.scoreTeamB ?? 0;
   }
 
   /** Sync ammo and reload state from server (authoritative). */
