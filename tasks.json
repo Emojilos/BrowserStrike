@@ -150,7 +150,7 @@
         "Шаг 4: Отправить move с NaN — сервер должен отклонить (без краша)"
       ],
       "dependencies": [],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-016",

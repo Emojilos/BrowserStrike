@@ -1,6 +1,22 @@
 # BrowserStrike — Notes for next iteration
 
 ## Completed this session
+- TASK-015 (Server game loop + move/look message handling)
+  - Created packages/server/src/physics/CollisionWorld.ts:
+    - Server-side collision world (pure math, no Three.js)
+    - Same AABB resolve logic as client (4-iteration correction)
+  - Created packages/server/src/physics/mapCollisions.ts:
+    - buildWarehouseCollisions() — same collision boxes as client MapBuilder
+    - buildMapCollisions(mapId) — factory for per-map collision worlds
+  - Updated packages/server/src/rooms/GameRoom.ts:
+    - 'input' message handler: validates input, applies applyMovement(), resolves collisions
+    - Input validation: rejects NaN, Infinity, negative/excessive deltaTime, wrong types
+    - setSimulationInterval at TICK_RATE (20Hz) — placeholder onTick for future round logic
+    - CollisionWorld built on room creation based on map settings
+  - Updated packages/server/src/schemas/PlayerSchema.ts:
+    - Added lastProcessedSeq (uint32) for client-side prediction reconciliation
+    - Added server-only velocityY and isGrounded (not replicated, used for physics)
+
 - TASK-014 (Client router and state machine)
   - Created packages/client/src/App.ts:
     - AppState enum: MENU, LOBBY, PLAYING, MATCH_END
@@ -35,18 +51,22 @@
   - Fixed server dev script: added --tsconfig flag to tsx for legacy decorator support
 
 ## Current state
-- TASK-001 through TASK-008 + TASK-012 through TASK-014 all done
-- Server boots on port 2567, generates room codes, validates nicknames, manages players
-- Client has NetworkManager ready for creating/joining rooms
-- Client builds and type-checks; 3D warehouse scene with FPS controls, physics, weapon model
+- TASK-001 through TASK-008 + TASK-009 through TASK-015 all done
+- Server: boots on 2567, room codes, nicknames, move/look with physics+collisions, game loop at 20Hz
+- Client: NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model
 
 ## Next priority tasks (all deps met)
-- TASK-015: Server game loop + move/look (no deps) — critical
 - TASK-016: Main Menu UI (deps: TASK-014 done) — critical, blocks lobby
-- TASK-018: Game HUD (deps: TASK-014 done) — high
 - TASK-019: Shooting system client (deps: TASK-014 done) — critical
+- TASK-020: Position sync + remote players (deps: TASK-015 done) — critical
+- TASK-018: Game HUD (deps: TASK-014 done) — high
 
 ## Notes
+- Server input handling: per-message processing (not buffered), applies physics + collisions immediately
+- Input validation: MAX_DELTA_TIME = 0.25s, rejects non-finite, negative, wrong types
+- Server CollisionWorld in packages/server/src/physics/ — mirrors client version without Three.js
+- lastProcessedSeq (uint32) in PlayerSchema — clients will use for prediction reconciliation
+- velocityY and isGrounded are server-only fields (not @type decorated, not replicated)
 - @colyseus/schema v2.0.37 uses legacy decorators (experimentalDecorators: true)
 - tsx needs --tsconfig flag to respect experimentalDecorators from tsconfig.json
 - Room code uses ABCDEFGHJKLMNPQRSTUVWXYZ23456789 charset (no 0/O/1/I confusion)
