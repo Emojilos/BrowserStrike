@@ -133,13 +133,36 @@
     - On successful fire: computes isMoving from WASD keys, calls shooting.fire()
     - shooting.update(dt) called each frame for tracer fade and muzzle flash
 
+## Completed this session (continued 2)
+- TASK-018 (Game HUD: crosshair, HP, ammo, round score, timer)
+  - Created packages/client/src/ui/GameHUD.ts:
+    - CSS crosshair: green cross (4 lines + center dot), centered, pointer-events: none
+    - HP display: bottom center, health icon (+) with value, color-coded (white >60, orange >25, red ≤25)
+    - Ammo display: bottom right, "current / magazine" + weapon name, color-coded (red at 0, orange ≤30%)
+    - Round score: top center, Team A (blue) : Team B (red) with separator
+    - Round timer: below score, minutes:seconds format, color-coded (red ≤10s, orange ≤30s)
+    - All elements use text-shadow for readability against 3D scene
+    - update(HUDState) method refreshes all elements from provided state
+    - dispose() removes container from DOM
+  - Updated packages/client/index.html:
+    - Full CSS for .game-hud and all sub-elements
+    - Crosshair: 20px arms, 2px thickness, #00ff44 green, box-shadow outline
+    - Positioned elements: absolute positioning for each HUD area
+  - Updated packages/client/src/App.ts:
+    - GameHUD created in startGameLoop(), disposed in stopGameLoop()
+    - HUD updated every frame in animate() with current game state
+    - Helper methods: getLocalPlayerHP(), getLocalWeaponId(), getScoreA(), getScoreB(), getRoundTime()
+    - HP read from Colyseus state.players local player, defaults to PLAYER_HP
+    - Score/timer read from Colyseus state, defaults to 0 / ROUND_TIME_LIMIT
+    - WeaponId currently hardcoded to 'deagle' (will be dynamic after weapon switching)
+
 ## Current state
-- TASK-001 through TASK-020 all done (TASK-019 newly completed)
+- TASK-001 through TASK-020 + TASK-018 all done
 - Server: boots on 2567, room codes, nicknames, move/look with physics+collisions, game loop at 20Hz, updateSettings + startGame handlers
-- Client: Main Menu → Lobby → Playing flow, NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model, shooting system with visual effects, remote player capsules synced via Colyseus
+- Client: Main Menu → Lobby → Playing flow, NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model, shooting system with visual effects, remote player capsules synced via Colyseus, in-game HUD
 
 ## Next priority tasks (all deps met)
-- TASK-018: Game HUD (deps: TASK-014 done) — high
+- TASK-023: Ammo & reload system (deps: TASK-019 done, TASK-018 done) — high, unlocks TASK-024 (critical)
 - TASK-021: Client-side prediction (deps: TASK-020 done) — high
 - TASK-022: Entity interpolation (deps: TASK-020 done) — high
 
@@ -185,3 +208,8 @@
 - ShootMessage sent to server: {seq, timestamp, origin: Vec3, direction: Vec3}
 - Ammo check happens before weapon.tryFire() — no recoil animation when magazine empty
 - Server 'shoot' message handler not yet implemented (TASK-024 dependency)
+- GameHUD reads hp/score/timer from Colyseus state with fallback defaults
+- GameHUD.update() called every frame in animate loop
+- HUD container appended to playing-screen div, z-index: 10
+- Crosshair is pure CSS (no canvas/WebGL), green #00ff44, 20px size
+- WeaponId in HUD is currently hardcoded 'deagle' — update after weapon switching (TASK-028)

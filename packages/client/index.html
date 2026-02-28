@@ -197,6 +197,86 @@
       display: flex; gap: 12px; justify-content: space-between;
     }
     .lobby-start-btn { flex: 1; }
+
+    /* Game HUD */
+    .game-hud {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; font-family: 'Segoe UI', Arial, sans-serif;
+      z-index: 10;
+    }
+
+    /* Crosshair */
+    .hud-crosshair {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .hud-cross-h, .hud-cross-v {
+      position: absolute; background: #00ff44;
+    }
+    .hud-cross-h {
+      width: 20px; height: 2px;
+      top: -1px; left: -10px;
+      box-shadow: 0 0 2px rgba(0,0,0,0.8);
+    }
+    .hud-cross-v {
+      width: 2px; height: 20px;
+      top: -10px; left: -1px;
+      box-shadow: 0 0 2px rgba(0,0,0,0.8);
+    }
+    .hud-cross-dot {
+      position: absolute; width: 2px; height: 2px;
+      top: -1px; left: -1px; background: #00ff44;
+    }
+
+    /* Top center: score + timer */
+    .hud-top-center {
+      position: absolute; top: 16px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    .hud-score {
+      font-size: 1.6rem; font-weight: 700;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    }
+    .hud-score-a { color: #5b9dff; }
+    .hud-score-sep { color: #666; margin: 0 6px; }
+    .hud-score-b { color: #ff5b5b; }
+    .hud-timer {
+      font-size: 0.95rem; color: #aaa;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+
+    /* Bottom center: HP */
+    .hud-bottom-center {
+      position: absolute; bottom: 32px; left: 50%;
+      transform: translateX(-50%);
+    }
+    .hud-hp {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 1.5rem; font-weight: 700;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    }
+    .hud-hp-icon {
+      color: #ff3c3c; font-size: 1.2rem; font-weight: 700;
+    }
+    .hud-hp-value { color: #fff; }
+
+    /* Bottom right: ammo + weapon */
+    .hud-bottom-right {
+      position: absolute; bottom: 32px; right: 32px;
+      text-align: right;
+    }
+    .hud-ammo {
+      font-size: 1.5rem; font-weight: 700;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    }
+    .hud-ammo-current { color: #fff; }
+    .hud-ammo-sep { color: #666; margin: 0 2px; }
+    .hud-ammo-mag { color: #888; font-size: 1.1rem; }
+    .hud-weapon-name {
+      font-size: 0.8rem; color: #888; margin-top: 2px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
   </style>
 </head>
 <body>

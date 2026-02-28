@@ -7,7 +7,9 @@ import { RemotePlayerManager } from './engine/RemotePlayerManager';
 import { NetworkManager } from './network/NetworkManager';
 import { MenuScreen } from './ui/MenuScreen';
 import { LobbyScreen } from './ui/LobbyScreen';
-import type { InputMessage, ShootMessage, Team, GameMode, MapId, RoundsToWin } from '@browserstrike/shared';
+import { GameHUD } from './ui/GameHUD';
+import { PLAYER_HP, ROUND_TIME_LIMIT } from '@browserstrike/shared';
+import type { InputMessage, ShootMessage, Team, GameMode, MapId, RoundsToWin, WeaponId } from '@browserstrike/shared';
 
 export enum AppState {
   MENU = 'menu',
@@ -36,6 +38,7 @@ export class App {
   private weaponModel: WeaponModel | null = null;
   private shootingSystem: ShootingSystem | null = null;
   private remotePlayers: RemotePlayerManager | null = null;
+  private gameHUD: GameHUD | null = null;
 
   // Network — always available
   readonly network: NetworkManager;
@@ -237,6 +240,12 @@ export class App {
       this.network.send('shoot', msg);
     });
 
+    // Game HUD — crosshair, HP, ammo, score, timer
+    const playingScreen = this.screens.get(AppState.PLAYING);
+    if (playingScreen) {
+      this.gameHUD = new GameHUD(playingScreen);
+    }
+
     // Remote players — spawn/despawn capsules from Colyseus state
     this.remotePlayers = new RemotePlayerManager(
       this.sceneManager.scene,
@@ -253,6 +262,10 @@ export class App {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = 0;
+    }
+    if (this.gameHUD) {
+      this.gameHUD.dispose();
+      this.gameHUD = null;
     }
     if (this.remotePlayers) {
       this.remotePlayers.dispose();
@@ -348,6 +361,46 @@ export class App {
     this.network.send('input', msg);
   }
 
+  // ── HUD data helpers ────────────────────────────────────
+
+  private getLocalPlayerHP(): number {
+    if (!this.network.connected) return PLAYER_HP;
+    const room = this.network.currentRoom;
+    if (!room) return PLAYER_HP;
+    const state = room.state as { players?: Map<string, { hp?: number }> };
+    const local = state.players?.get(this.network.sessionId);
+    return local?.hp ?? PLAYER_HP;
+  }
+
+  private getLocalWeaponId(): WeaponId {
+    // Currently only Deagle; will be dynamic after TASK-028
+    return 'deagle';
+  }
+
+  private getScoreA(): number {
+    if (!this.network.connected) return 0;
+    const room = this.network.currentRoom;
+    if (!room) return 0;
+    const state = room.state as { scoreA?: number };
+    return state.scoreA ?? 0;
+  }
+
+  private getScoreB(): number {
+    if (!this.network.connected) return 0;
+    const room = this.network.currentRoom;
+    if (!room) return 0;
+    const state = room.state as { scoreB?: number };
+    return state.scoreB ?? 0;
+  }
+
+  private getRoundTime(): number {
+    if (!this.network.connected) return ROUND_TIME_LIMIT;
+    const room = this.network.currentRoom;
+    if (!room) return ROUND_TIME_LIMIT;
+    const state = room.state as { roundTimer?: number };
+    return state.roundTimer ?? ROUND_TIME_LIMIT;
+  }
+
   private animate = (now: number): void => {
     this.animationFrameId = requestAnimationFrame(this.animate);
 
@@ -373,6 +426,19 @@ export class App {
 
     // Send input to server after local prediction
     this.sendInput(dt);
+
+    // Update HUD
+    if (this.gameHUD) {
+      this.gameHUD.update({
+        hp: this.getLocalPlayerHP(),
+        ammo: shooting.getAmmo(),
+        magazineSize: shooting.getMagazineSize(),
+        weaponId: this.getLocalWeaponId(),
+        scoreA: this.getScoreA(),
+        scoreB: this.getScoreB(),
+        roundTime: this.getRoundTime(),
+      });
+    }
 
     scene.render();
     scene.renderOverlay(weapon.scene, weapon.camera);
