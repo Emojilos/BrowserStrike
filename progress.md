@@ -68,3 +68,23 @@
 - WebSocketTransport принимает http.Server через опцию `server` — transport.listen() вызывает httpServer.listen()
 - Colyseus 0.15.57 установлен, GameRoom зарегистрирован и работает
 - Все 4 test step пройдены: сервер стартует, HTTP отвечает, логи корректны
+
+### 2026-02-28 — TASK-005 → TASK-013: Завершение Этапа 1
+**Статус:** done
+**Автор:** agent
+**Изменения:**
+- TASK-005: 3D сцена, Warehouse из примитивов (b0c2c06)
+- TASK-006: FPS-контроллер WASD + мышь + Pointer Lock (b8faab3)
+- TASK-007: Физика — гравитация, прыжок, AABB коллизии (0c840ec)
+- TASK-008: Модель Deagle с анимацией отдачи (4ede179)
+- TASK-009: CJS-совместимость shared для сервера (18ee8d9)
+- TASK-010: applyMovement() чистая функция (18ee8d9)
+- TASK-011: Shared типы сообщений (8428b38)
+- TASK-012: State Schema — GameState, PlayerSchema и др. (8428b38)
+- TASK-013: Система комнат — код, никнеймы, команды (f670c16)
+
+---
+
+## Этап 2: Мультиплеер — В РАБОТЕ
+
+_Записи добавляются агентами по мере выполнения задач._
