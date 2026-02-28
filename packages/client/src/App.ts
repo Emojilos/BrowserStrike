@@ -10,7 +10,7 @@ import { MenuScreen } from './ui/MenuScreen';
 import { LobbyScreen } from './ui/LobbyScreen';
 import { GameHUD } from './ui/GameHUD';
 import { WeaponSelectScreen } from './ui/WeaponSelectScreen';
-import { PLAYER_HP, ROUND_TIME_LIMIT, DEFAULT_WEAPON } from '@browserstrike/shared';
+import { PLAYER_HP, ROUND_TIME_LIMIT, DEFAULT_WEAPON, WEAPON_IDS } from '@browserstrike/shared';
 import type { InputMessage, ShootMessage, Team, GameMode, MapId, RoundsToWin, WeaponId, RoundEndEvent, MatchEndEvent } from '@browserstrike/shared';
 
 export enum AppState {
@@ -601,6 +601,7 @@ export class App {
       const serverWeapon = local.currentWeapon as WeaponId;
       if (serverWeapon !== this.shootingSystem.getWeaponId()) {
         this.shootingSystem.switchWeapon(serverWeapon);
+        this.weaponModel?.switchWeapon(serverWeapon);
       }
     }
   }
@@ -625,6 +626,33 @@ export class App {
     return state.roundTimer ?? ROUND_TIME_LIMIT;
   }
 
+  /** Handle weapon switching via number keys (1/2/3) or scroll wheel. */
+  private handleWeaponSwitch(fps: FPSController): void {
+    const slot = fps.input.consumeWeaponSlot();
+    const scroll = fps.input.consumeWeaponScroll();
+
+    let targetWeapon: WeaponId | null = null;
+
+    if (slot >= 1 && slot <= WEAPON_IDS.length) {
+      targetWeapon = WEAPON_IDS[slot - 1];
+    } else if (scroll !== 0) {
+      const currentIdx = WEAPON_IDS.indexOf(this.shootingSystem!.getWeaponId());
+      const nextIdx = (currentIdx + scroll + WEAPON_IDS.length) % WEAPON_IDS.length;
+      targetWeapon = WEAPON_IDS[nextIdx];
+    }
+
+    if (targetWeapon && targetWeapon !== this.shootingSystem!.getWeaponId()) {
+      this.switchToWeapon(targetWeapon);
+    }
+  }
+
+  /** Switch weapon locally (model + shooting system) and notify server. */
+  private switchToWeapon(weaponId: WeaponId): void {
+    this.shootingSystem!.switchWeapon(weaponId);
+    this.weaponModel!.switchWeapon(weaponId);
+    this.network.send('selectWeapon', { weapon: weaponId });
+  }
+
   private animate = (now: number): void => {
     this.animationFrameId = requestAnimationFrame(this.animate);
 
@@ -635,6 +663,11 @@ export class App {
     const weapon = this.weaponModel!;
     const shooting = this.shootingSystem!;
     const scene = this.sceneManager!;
+
+    // Handle weapon switching (1/2/3 keys or scroll wheel)
+    if (fps.pointerLock.locked) {
+      this.handleWeaponSwitch(fps);
+    }
 
     // Handle R key for manual reload
     if (fps.pointerLock.locked && fps.input.consumeReload()) {

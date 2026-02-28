@@ -437,7 +437,7 @@
         "Шаг 4: Начать перезарядку SSG-08, нажать 1 — перезарядка прервана"
       ],
       "dependencies": ["TASK-023"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-029",

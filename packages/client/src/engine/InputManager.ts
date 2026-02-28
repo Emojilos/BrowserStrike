@@ -19,6 +19,12 @@ export class InputManager {
   /** Whether the R key was pressed this frame (consumed after read) */
   reloadPressed = false;
 
+  /** Weapon slot selected this frame (1/2/3), 0 = none. Consumed after read. */
+  weaponSlot = 0;
+
+  /** Scroll direction this frame: +1 = next, -1 = prev, 0 = none. Consumed after read. */
+  weaponScroll = 0;
+
   /** Accumulated mouse movement since last consumeMouseDelta() call */
   private _mouseDeltaX = 0;
   private _mouseDeltaY = 0;
@@ -29,6 +35,7 @@ export class InputManager {
     document.addEventListener('mousemove', this.onMouseMove);
     document.addEventListener('mousedown', this.onMouseDown);
     document.addEventListener('mouseup', this.onMouseUp);
+    document.addEventListener('wheel', this.onWheel, { passive: true });
   }
 
   private onKeyDown = (e: KeyboardEvent): void => {
@@ -47,6 +54,9 @@ export class InputManager {
       case 'KeyD': this.keys.d = pressed; break;
       case 'Space': this.keys.space = pressed; break;
       case 'KeyR': if (pressed) this.reloadPressed = true; break;
+      case 'Digit1': if (pressed) this.weaponSlot = 1; break;
+      case 'Digit2': if (pressed) this.weaponSlot = 2; break;
+      case 'Digit3': if (pressed) this.weaponSlot = 3; break;
     }
   }
 
@@ -54,6 +64,20 @@ export class InputManager {
   consumeReload(): boolean {
     const v = this.reloadPressed;
     this.reloadPressed = false;
+    return v;
+  }
+
+  /** Consume weapon slot selection (1/2/3 key). Returns 0 if none pressed. */
+  consumeWeaponSlot(): number {
+    const v = this.weaponSlot;
+    this.weaponSlot = 0;
+    return v;
+  }
+
+  /** Consume weapon scroll direction (+1/-1). Returns 0 if no scroll. */
+  consumeWeaponScroll(): number {
+    const v = this.weaponScroll;
+    this.weaponScroll = 0;
     return v;
   }
 
@@ -79,11 +103,17 @@ export class InputManager {
     if (e.button === 0) this.mouseDown = false;
   };
 
+  private onWheel = (e: WheelEvent): void => {
+    if (e.deltaY > 0) this.weaponScroll = 1;
+    else if (e.deltaY < 0) this.weaponScroll = -1;
+  };
+
   dispose(): void {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
     document.removeEventListener('mousemove', this.onMouseMove);
     document.removeEventListener('mousedown', this.onMouseDown);
     document.removeEventListener('mouseup', this.onMouseUp);
+    document.removeEventListener('wheel', this.onWheel);
   }
 }

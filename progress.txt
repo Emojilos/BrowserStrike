@@ -313,14 +313,43 @@
     - Countdown handler clears interpolation buffers alongside prediction buffer
     - PlayerData interface now includes pitch field
 
+## Completed this session (continued 9)
+- TASK-028 (SSG-08 model and weapon switching system)
+  - Refactored packages/client/src/engine/WeaponModel.ts:
+    - Now supports all 3 weapons (Deagle, SSG-08, MP9) with per-weapon models and recoil params
+    - switchWeapon() method: clears old geometry, builds new model, resets recoil/fire state
+    - Per-weapon WEAPON_PARAMS: restPosition, recoilDuration, recoilKickBack/Up, recoilRotation
+    - SSG-08 recoil: 0.25s duration (vs 0.12s Deagle), stronger kick-back (0.10) and rotation (0.22)
+    - MP9 recoil: 0.06s snappy cycle, light kick (0.03 back, 0.02 up)
+    - tryFire() now handles automatic weapons (hold-to-fire for MP9) vs semi-auto (Deagle, SSG-08)
+  - Built SSG-08 model (buildSSG08Model):
+    - Long barrel (CylinderGeometry 0.45 length), receiver body
+    - Scope: tube + front/rear lens rings on rail mount
+    - Bolt handle + knob on right side
+    - Wooden stock with butt plate
+    - Trigger guard, trigger, magazine, muzzle brake
+  - Built MP9 model (buildMP9Model):
+    - Compact upper receiver + short barrel
+    - Long stick magazine (angled forward)
+    - Folding stock (side-folded), charging handle
+    - Polymer grip and lower receiver
+  - Updated packages/client/src/engine/InputManager.ts:
+    - Digit1/2/3 keys set weaponSlot (consumed per frame via consumeWeaponSlot())
+    - Mouse wheel sets weaponScroll (+1/-1, consumed via consumeWeaponScroll())
+    - Added wheel event listener (passive)
+  - Updated packages/client/src/App.ts:
+    - handleWeaponSwitch(): reads slot keys + scroll, maps to WeaponId via WEAPON_IDS array
+    - switchToWeapon(): syncs WeaponModel + ShootingSystem + sends selectWeapon to server
+    - syncWeaponFromServer() now also syncs WeaponModel (not just ShootingSystem)
+    - Scroll wheel cycles through weapons cyclically
+
 ## Current state
-- TASK-001 through TASK-022 + TASK-023 + TASK-024 + TASK-026 + TASK-027 all done
+- TASK-001 through TASK-022 + TASK-023 + TASK-024 + TASK-026 + TASK-027 + TASK-028 all done
 - Server: boots on 2567, room codes, nicknames, move/look with physics+collisions, game loop at 20Hz, updateSettings + startGame handlers, shoot handler with ammo/fire-rate validation + server-side hit detection + damage + kill tracking, reload handler with timer, RoundSystem state machine (weapon_select → countdown → playing → round_end → match_end), selectWeapon handler, returnToLobby handler
-- Client: Main Menu → Lobby → Weapon Select → Playing → Match End flow, NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model, shooting system with visual effects + reload + weapon switching, remote player capsules synced via Colyseus, in-game HUD with reload indicator, weapon select screen with 3 cards + timer, match end screen with rematch/quit, round event listeners, client-side prediction with server reconciliation, **entity interpolation for smooth remote player movement**
+- Client: Main Menu → Lobby → Weapon Select → Playing → Match End flow, NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, **3 weapon models (Deagle/SSG-08/MP9) with switching (1/2/3 keys + scroll)**, shooting system with visual effects + reload + weapon switching, remote player capsules synced via Colyseus, in-game HUD with reload indicator, weapon select screen with 3 cards + timer, match end screen with rematch/quit, round event listeners, client-side prediction with server reconciliation, entity interpolation for smooth remote player movement
 
 ## Next priority tasks (all deps met)
-- TASK-028: SSG-08 model (deps: TASK-023 done) — high
-- TASK-029: MP9 model (deps: TASK-023 done) — high
+- TASK-029: MP9 model and auto-fire behavior (deps: TASK-023 done) — high (model built, needs testing)
 - TASK-031: Kill Feed UI (deps: TASK-018 done, TASK-024 done) — medium
 - TASK-032: Scoreboard UI (deps: TASK-018 done) — medium
 - TASK-033: Damage indicator/hitmarker (deps: TASK-018 done, TASK-024 done) — medium
@@ -394,3 +423,11 @@
 - InterpolationBuffer: ring buffer of ~22 snapshots, lerp position, lerpAngle for yaw (shortest path wrap-around)
 - RemotePlayerManager.pushSnapshot() replaces old updatePlayer(), updateInterpolation() called every frame
 - Interpolation buffers cleared on countdown event alongside prediction buffers
+- WeaponModel now supports all 3 weapons with switchWeapon() — clears old geometry, builds new, resets state
+- WeaponModel WEAPON_PARAMS: per-weapon restPosition, recoilDuration/KickBack/KickUp/Rotation
+- SSG-08: long barrel, scope (tube+lens rings), bolt handle+knob, wooden stock, muzzle brake; recoil 0.25s
+- MP9: compact SMG, stick magazine, folding stock, polymer grip; snappy 0.06s recoil
+- tryFire() now handles automatic (config.automatic=true → hold-to-fire) vs semi-auto (fresh click only)
+- Weapon switch: 1/2/3 keys (consumeWeaponSlot) + scroll wheel (consumeWeaponScroll) in InputManager
+- switchToWeapon() in App: syncs WeaponModel + ShootingSystem + sends selectWeapon to server
+- Scroll wheel cycles through WEAPON_IDS cyclically (wraps around)
