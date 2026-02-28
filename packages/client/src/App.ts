@@ -2,11 +2,12 @@ import { SceneManager } from './engine/SceneManager';
 import { buildWarehouseMap } from './engine/MapBuilder';
 import { FPSController } from './engine/FPSController';
 import { WeaponModel } from './engine/WeaponModel';
+import { ShootingSystem } from './engine/ShootingSystem';
 import { RemotePlayerManager } from './engine/RemotePlayerManager';
 import { NetworkManager } from './network/NetworkManager';
 import { MenuScreen } from './ui/MenuScreen';
 import { LobbyScreen } from './ui/LobbyScreen';
-import type { InputMessage, Team, GameMode, MapId, RoundsToWin } from '@browserstrike/shared';
+import type { InputMessage, ShootMessage, Team, GameMode, MapId, RoundsToWin } from '@browserstrike/shared';
 
 export enum AppState {
   MENU = 'menu',
@@ -33,6 +34,7 @@ export class App {
   private sceneManager: SceneManager | null = null;
   private fpsController: FPSController | null = null;
   private weaponModel: WeaponModel | null = null;
+  private shootingSystem: ShootingSystem | null = null;
   private remotePlayers: RemotePlayerManager | null = null;
 
   // Network — always available
@@ -229,6 +231,12 @@ export class App {
 
     this.weaponModel = new WeaponModel(window.innerWidth / window.innerHeight);
 
+    // Shooting system — raycasting, spread, visual effects, ammo tracking
+    this.shootingSystem = new ShootingSystem(this.sceneManager.scene);
+    this.shootingSystem.setSendCallback((msg: ShootMessage) => {
+      this.network.send('shoot', msg);
+    });
+
     // Remote players — spawn/despawn capsules from Colyseus state
     this.remotePlayers = new RemotePlayerManager(
       this.sceneManager.scene,
@@ -249,6 +257,10 @@ export class App {
     if (this.remotePlayers) {
       this.remotePlayers.dispose();
       this.remotePlayers = null;
+    }
+    if (this.shootingSystem) {
+      this.shootingSystem.dispose();
+      this.shootingSystem = null;
     }
     if (this.fpsController) {
       this.fpsController.dispose();
@@ -344,14 +356,20 @@ export class App {
 
     const fps = this.fpsController!;
     const weapon = this.weaponModel!;
+    const shooting = this.shootingSystem!;
     const scene = this.sceneManager!;
 
-    if (fps.pointerLock.locked) {
-      weapon.tryFire(fps.input.mouseDown, now);
+    if (fps.pointerLock.locked && shooting.getAmmo() > 0) {
+      const fired = weapon.tryFire(fps.input.mouseDown, now);
+      if (fired) {
+        const isMoving = fps.input.keys.w || fps.input.keys.a || fps.input.keys.s || fps.input.keys.d;
+        shooting.fire(fps.position, fps.yaw, fps.pitch, isMoving);
+      }
     }
 
     fps.update(dt);
     weapon.update(dt);
+    shooting.update(dt);
 
     // Send input to server after local prediction
     this.sendInput(dt);

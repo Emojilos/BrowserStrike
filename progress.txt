@@ -112,13 +112,33 @@
   - Created packages/client/src/vite-env.d.ts for Vite type support
   - Fixed server dev script: added --tsconfig flag to tsx for legacy decorator support
 
+## Completed this session (continued)
+- TASK-019 (Client-side shooting system: raycast, visual effects, ammo tracking)
+  - Created packages/client/src/engine/ShootingSystem.ts:
+    - Three.js Raycaster from camera position (eye height) in look direction
+    - Weapon spread system: base spread, moving spread, sustained (consecutive shots) spread
+    - Spread resets after 300ms of no firing
+    - Muzzle flash: PointLight at 0xffaa00, intensity 3, fades after 50ms
+    - Tracer lines: BufferGeometry line from origin to hit point, yellow (#ffdd44), fades over 150ms
+    - Wall decals: CircleGeometry (0.03 radius), oriented to surface normal, ring buffer of 64 max
+    - Optimistic ammo tracking: decrements on fire, blocks firing at 0
+    - Sends ShootMessage to server: {seq, timestamp, origin, direction}
+    - Hit normal transformed from object-local to world space for correct decal orientation
+    - Objects with userData.isEffect are skipped during raycasting (prevents self-intersection)
+    - Proper dispose(): removes all lights, tracers, decals; disposes geometries and materials
+  - Updated packages/client/src/App.ts:
+    - ShootingSystem created in startGameLoop(), disposed in stopGameLoop()
+    - setSendCallback wired to network.send('shoot', msg)
+    - animate() checks ammo > 0 before allowing weapon.tryFire()
+    - On successful fire: computes isMoving from WASD keys, calls shooting.fire()
+    - shooting.update(dt) called each frame for tracer fade and muzzle flash
+
 ## Current state
-- TASK-001 through TASK-017 + TASK-020 all done
+- TASK-001 through TASK-020 all done (TASK-019 newly completed)
 - Server: boots on 2567, room codes, nicknames, move/look with physics+collisions, game loop at 20Hz, updateSettings + startGame handlers
-- Client: Main Menu → Lobby → Playing flow, NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model, remote player capsules synced via Colyseus
+- Client: Main Menu → Lobby → Playing flow, NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model, shooting system with visual effects, remote player capsules synced via Colyseus
 
 ## Next priority tasks (all deps met)
-- TASK-019: Shooting system client (deps: TASK-014 done) — critical
 - TASK-018: Game HUD (deps: TASK-014 done) — high
 - TASK-021: Client-side prediction (deps: TASK-020 done) — high
 - TASK-022: Entity interpolation (deps: TASK-020 done) — high
@@ -159,3 +179,9 @@
 - updateSettings rebuilds CollisionWorld on map change
 - startGame validates team staffing: 1 per team for 1v1, 2 per team for 2v2
 - Admin reassignment on leave already handled in GameRoom.onLeave()
+- ShootingSystem: raycaster.far set to weapon range, PointLight for muzzle flash, LineBasicMaterial for tracers
+- ShootingSystem spread: base + moving (overrides base) + sustained * consecutiveShots; resets after 300ms idle
+- Decals use ring buffer (MAX_DECALS=64) to prevent memory growth; CircleGeometry oriented via lookAt(point+normal)
+- ShootMessage sent to server: {seq, timestamp, origin: Vec3, direction: Vec3}
+- Ammo check happens before weapon.tryFire() — no recoil animation when magazine empty
+- Server 'shoot' message handler not yet implemented (TASK-024 dependency)

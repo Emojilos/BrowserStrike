@@ -239,7 +239,7 @@
         "Шаг 4: Стрелять на ходу — spread визуально заметен (разброс попаданий)"
       ],
       "dependencies": ["TASK-014"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-020",
