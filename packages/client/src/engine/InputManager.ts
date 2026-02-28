@@ -16,6 +16,9 @@ export class InputManager {
   /** Whether the primary mouse button (LMB) is currently held */
   mouseDown = false;
 
+  /** Whether the Tab key is currently held */
+  tabHeld = false;
+
   /** Whether the R key was pressed this frame (consumed after read) */
   reloadPressed = false;
 
@@ -39,10 +42,12 @@ export class InputManager {
   }
 
   private onKeyDown = (e: KeyboardEvent): void => {
+    if (e.code === 'Tab') e.preventDefault();
     this.setKey(e.code, true);
   };
 
   private onKeyUp = (e: KeyboardEvent): void => {
+    if (e.code === 'Tab') e.preventDefault();
     this.setKey(e.code, false);
   };
 
@@ -57,6 +62,7 @@ export class InputManager {
       case 'Digit1': if (pressed) this.weaponSlot = 1; break;
       case 'Digit2': if (pressed) this.weaponSlot = 2; break;
       case 'Digit3': if (pressed) this.weaponSlot = 3; break;
+      case 'Tab': this.tabHeld = pressed; break;
     }
   }
 

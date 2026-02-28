@@ -12,6 +12,8 @@ import { GameHUD } from './ui/GameHUD';
 import { WeaponSelectScreen } from './ui/WeaponSelectScreen';
 import { DamageEffects } from './ui/DamageEffects';
 import { KillFeed } from './ui/KillFeed';
+import { Scoreboard } from './ui/Scoreboard';
+import type { ScoreboardState, ScoreboardPlayer } from './ui/Scoreboard';
 import { PLAYER_HP, ROUND_TIME_LIMIT, DEFAULT_WEAPON, WEAPON_IDS } from '@browserstrike/shared';
 import type { InputMessage, ShootMessage, Team, GameMode, MapId, RoundsToWin, WeaponId, KillEvent, RoundEndEvent, MatchEndEvent } from '@browserstrike/shared';
 
@@ -47,6 +49,7 @@ export class App {
   private weaponSelectScreen: WeaponSelectScreen | null = null;
   private damageEffects: DamageEffects | null = null;
   private killFeed: KillFeed | null = null;
+  private scoreboard: Scoreboard | null = null;
 
   // Network — always available
   readonly network: NetworkManager;
@@ -343,6 +346,9 @@ export class App {
 
       // Kill feed — top-right kill notifications
       this.killFeed = new KillFeed(playingScreen);
+
+      // Scoreboard — shown while Tab is held
+      this.scoreboard = new Scoreboard(playingScreen);
     }
 
     // Remote players — spawn/despawn capsules from Colyseus state
@@ -361,6 +367,10 @@ export class App {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = 0;
+    }
+    if (this.scoreboard) {
+      this.scoreboard.dispose();
+      this.scoreboard = null;
     }
     if (this.killFeed) {
       this.killFeed.dispose();
@@ -652,6 +662,37 @@ export class App {
     }
   }
 
+  private getScoreboardState(): ScoreboardState {
+    const teamA: ScoreboardPlayer[] = [];
+    const teamB: ScoreboardPlayer[] = [];
+    const localSid = this.network.sessionId;
+
+    const room = this.network.currentRoom;
+    if (room) {
+      const state = room.state as {
+        players?: Map<string, { nickname?: string; team?: string; kills?: number; deaths?: number; isAlive?: boolean }>;
+      };
+      state.players?.forEach((p, sid) => {
+        const entry: ScoreboardPlayer = {
+          nickname: p.nickname ?? 'Unknown',
+          kills: p.kills ?? 0,
+          deaths: p.deaths ?? 0,
+          isLocal: sid === localSid,
+          isAlive: p.isAlive !== false,
+        };
+        if (p.team === 'A') teamA.push(entry);
+        else if (p.team === 'B') teamB.push(entry);
+      });
+    }
+
+    // Sort by kills descending
+    const byKills = (a: ScoreboardPlayer, b: ScoreboardPlayer) => b.kills - a.kills;
+    teamA.sort(byKills);
+    teamB.sort(byKills);
+
+    return { teamA, teamB, scoreA: this.getScoreA(), scoreB: this.getScoreB() };
+  }
+
   private getRoundTime(): number {
     if (!this.network.connected) return ROUND_TIME_LIMIT;
     const room = this.network.currentRoom;
@@ -722,6 +763,15 @@ export class App {
     shooting.update(dt);
     this.damageEffects?.update(dt);
     this.killFeed?.update(dt);
+
+    // Scoreboard: show/hide on Tab hold, update data
+    if (this.scoreboard) {
+      const tabHeld = fps.input.tabHeld;
+      this.scoreboard.setVisible(tabHeld);
+      if (tabHeld) {
+        this.scoreboard.update(this.getScoreboardState());
+      }
+    }
 
     // Apply smooth prediction correction offset
     if (this.prediction) {

@@ -492,3 +492,36 @@
 - Scroll wheel cycles through WEAPON_IDS cyclically (wraps around)
 - KillFeed: max 5 entries, 5s display + 0.5s CSS fade-out, entries auto-removed after fade
 - Kill events arrive via broadcast 'kill' message (KillEvent type from shared); also stored in state.killFeed ArraySchema
+- Scoreboard: Tab-hold overlay with two team columns, player rows (nickname, K, D), sorted by kills
+- Scoreboard data read from Colyseus state.players (nickname, team, kills, deaths, isAlive)
+- Tab key tracked as continuous state (tabHeld) in InputManager, with e.preventDefault() to avoid browser tab-focus
+
+## Completed this session (continued 13)
+- TASK-032 (Scoreboard UI: table shown while Tab is held)
+  - Updated packages/client/src/engine/InputManager.ts:
+    - Added tabHeld boolean (continuous key state, not edge-triggered)
+    - Tab key case in setKey() sets tabHeld = pressed
+    - preventDefault() on Tab keydown/keyup to prevent browser default focus behavior
+  - Created packages/client/src/ui/Scoreboard.ts:
+    - Dark semi-transparent overlay (rgba(10,10,30,0.92)), centered panel
+    - Header: Team A score (blue) — "SCOREBOARD" — Team B score (red)
+    - Two team columns with team-colored headers
+    - Table per team: Player, K, D columns
+    - Local player highlighted orange (.sb-local), dead players dimmed (.sb-dead)
+    - Players sorted by kills descending within each team
+    - HTML-escaped nicknames (XSS prevention)
+    - setVisible()/isShown() for Tab hold toggle
+    - update(ScoreboardState) rebuilds HTML only when visible
+    - dispose() removes container from DOM
+  - Updated packages/client/index.html:
+    - CSS for .scoreboard-overlay (z-index:25, above weapon select z-index:20)
+    - .scoreboard-panel: dark background, rounded, 480-600px width
+    - Team headers with colored backgrounds (blue/red tint)
+    - Compact table rows with consistent styling
+  - Updated packages/client/src/App.ts:
+    - Import Scoreboard + types
+    - Scoreboard created in startGameLoop() alongside other UI components
+    - Disposed in stopGameLoop()
+    - animate() checks fps.input.tabHeld → setVisible() + update()
+    - getScoreboardState(): reads all players from Colyseus state, splits by team, sorts by kills
+  - TypeScript compiles cleanly for client, server, and shared packages

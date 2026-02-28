@@ -522,7 +522,7 @@
         "Шаг 4: Данные корректны для обеих команд"
       ],
       "dependencies": ["TASK-018"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-033",
