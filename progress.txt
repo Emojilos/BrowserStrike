@@ -1,6 +1,24 @@
 # BrowserStrike — Notes for next iteration
 
 ## Completed this session
+- TASK-016 (Main Menu UI: nickname input, create/join room)
+  - Created packages/client/src/ui/MenuScreen.ts:
+    - Dark theme panel (#1a1a2e bg, #16213e panel, #ff6b00 accents)
+    - Nickname input with validation (3-16 chars, a-zA-Z0-9_)
+    - "Create Room" button calls NetworkManager.createRoom()
+    - "Join" button + room code field (6 chars, auto-capitalize) calls NetworkManager.joinByCode()
+    - Error display area for validation/network errors
+    - Loading state (disables inputs, shows "Connecting...")
+    - Nickname persisted to localStorage
+    - Reset method for re-entering menu state
+  - Updated packages/client/index.html:
+    - Added full CSS for menu panel, inputs, buttons, divider, error display
+    - Background changed to #1a1a2e (dark theme)
+  - Updated packages/client/src/App.ts:
+    - Added initMenuScreen() — creates MenuScreen and wires callbacks
+    - onCreateRoom/onJoinRoom callbacks transition to LOBBY on success
+    - enterState(MENU) calls menuScreen.reset()
+
 - TASK-020 (Position sync: send inputs to server, display remote players)
   - Created packages/client/src/engine/RemotePlayerManager.ts:
     - Spawns/despawns Three.js capsule meshes for remote players
@@ -65,12 +83,12 @@
   - Fixed server dev script: added --tsconfig flag to tsx for legacy decorator support
 
 ## Current state
-- TASK-001 through TASK-015 + TASK-020 all done
+- TASK-001 through TASK-016 + TASK-020 all done
 - Server: boots on 2567, room codes, nicknames, move/look with physics+collisions, game loop at 20Hz
-- Client: NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model, remote player capsules synced via Colyseus
+- Client: Main Menu UI with nickname/create/join, NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model, remote player capsules synced via Colyseus
 
 ## Next priority tasks (all deps met)
-- TASK-016: Main Menu UI (deps: TASK-014 done) — critical, blocks lobby
+- TASK-017: Lobby UI (deps: TASK-014, TASK-016 done) — critical, blocks round system
 - TASK-019: Shooting system client (deps: TASK-014 done) — critical
 - TASK-018: Game HUD (deps: TASK-014 done) — high
 - TASK-021: Client-side prediction (deps: TASK-020 done) — high

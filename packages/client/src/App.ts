@@ -4,6 +4,7 @@ import { FPSController } from './engine/FPSController';
 import { WeaponModel } from './engine/WeaponModel';
 import { RemotePlayerManager } from './engine/RemotePlayerManager';
 import { NetworkManager } from './network/NetworkManager';
+import { MenuScreen } from './ui/MenuScreen';
 import type { InputMessage } from '@browserstrike/shared';
 
 export enum AppState {
@@ -36,6 +37,9 @@ export class App {
   // Network — always available
   readonly network: NetworkManager;
 
+  // UI screens
+  private menuScreen: MenuScreen | null = null;
+
   // DOM references
   private readonly canvas: HTMLCanvasElement;
   private readonly uiRoot: HTMLElement;
@@ -52,6 +56,9 @@ export class App {
     // Hide canvas until playing
     this.canvas.style.display = 'none';
 
+    // Initialize menu screen UI
+    this.initMenuScreen();
+
     console.log('BrowserStrike loaded — app in MENU state');
   }
 
@@ -67,6 +74,25 @@ export class App {
       el.style.display = 'none';
       this.screens.set(appState, el);
     }
+  }
+
+  private initMenuScreen(): void {
+    const menuEl = this.screens.get(AppState.MENU);
+    if (!menuEl) return;
+
+    this.menuScreen = new MenuScreen(menuEl);
+    this.menuScreen.setCallbacks({
+      onCreateRoom: async (nickname: string) => {
+        const code = await this.network.createRoom(nickname);
+        console.log(`Room created with code: ${code}`);
+        this.setState(AppState.LOBBY);
+      },
+      onJoinRoom: async (roomCode: string, nickname: string) => {
+        await this.network.joinByCode(roomCode, nickname);
+        console.log(`Joined room: ${roomCode}`);
+        this.setState(AppState.LOBBY);
+      },
+    });
   }
 
   /** Transition to a new app state. */
@@ -106,6 +132,10 @@ export class App {
       this.startGameLoop();
     } else {
       this.canvas.style.display = 'none';
+    }
+
+    if (state === AppState.MENU) {
+      this.menuScreen?.reset();
     }
   }
 
