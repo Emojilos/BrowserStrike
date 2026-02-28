@@ -49,12 +49,12 @@ export class ShootingSystem {
 
   // Ammo state (optimistic client-side)
   private ammo: number;
-  private readonly magazineSize: number;
+  private magazineSize: number;
 
   // Reload state
   private _isReloading = false;
   private reloadTimer = 0;
-  private readonly reloadTime: number; // seconds
+  private reloadTime: number; // seconds
 
   // Spread tracking
   private consecutiveShots = 0;
@@ -62,7 +62,7 @@ export class ShootingSystem {
   private readonly SPREAD_RESET_TIME = 300; // ms before spread resets
 
   // Current weapon
-  private readonly weaponId: WeaponId;
+  private weaponId: WeaponId;
 
   // Callbacks to send messages to server
   private sendShoot: ((msg: ShootMessage) => void) | null = null;
@@ -112,6 +112,19 @@ export class ShootingSystem {
   cancelReload(): void {
     this._isReloading = false;
     this.reloadTimer = 0;
+  }
+
+  /** Switch to a different weapon — resets ammo, reload, and spread. */
+  switchWeapon(newWeaponId: WeaponId): void {
+    if (newWeaponId === this.weaponId) return;
+    this.weaponId = newWeaponId;
+    const config = WEAPONS[newWeaponId];
+    this.ammo = config.magazine;
+    this.magazineSize = config.magazine;
+    this.reloadTime = config.reloadTime / 1000;
+    this.raycaster.far = config.range;
+    this.cancelReload();
+    this.consecutiveShots = 0;
   }
 
   /** Complete the reload — refill magazine. */

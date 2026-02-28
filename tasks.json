@@ -415,7 +415,7 @@
         "Шаг 4: Дождаться 5 секунд → экран закрывается, выбрано SSG-08"
       ],
       "dependencies": ["TASK-026", "TASK-018"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-028",

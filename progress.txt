@@ -242,22 +242,49 @@
   - All constants: WEAPON_SELECT_TIME=5, ROUND_COUNTDOWN=3, ROUND_END_PAUSE=3, ROUND_TIME_LIMIT=120
   - TypeScript compiles cleanly for both server and client
 
+## Completed this session (continued 6)
+- TASK-027 (Weapon select screen — client)
+  - Created packages/client/src/ui/WeaponSelectScreen.ts:
+    - Dark overlay (rgba(10,10,25,0.85)) with z-index:20, shown during weapon_select phase
+    - Title: "CHOOSE YOUR WEAPON" in orange
+    - Countdown timer: large white text with orange glow, reads from state.roundTimer
+    - 3 weapon cards with stats from shared/weapons.ts: DMG (body/head), RATE (rps), MAG, RELOAD, RANGE
+    - AUTO tag on MP9 card (green badge)
+    - Orange border highlight on selected card, hover lift effect
+    - Default selection: Deagle (DEFAULT_WEAPON)
+    - Click sends 'selectWeapon' message to server immediately
+    - show()/hide() controlled by game status in checkGameStatus()
+    - dispose() removes overlay from DOM
+  - Updated packages/client/src/engine/ShootingSystem.ts:
+    - Made weaponId, magazineSize, reloadTime mutable (removed readonly)
+    - Added switchWeapon(newWeaponId): updates all weapon-dependent fields (ammo, magazine, reloadTime, raycaster.far), cancels reload, resets spread
+  - Updated packages/client/src/App.ts:
+    - WeaponSelectScreen created in startGameLoop(), disposed in stopGameLoop()
+    - checkGameStatus() shows weapon select overlay when status === 'weapon_select', hides otherwise
+    - Timer updated each state change from state.roundTimer
+    - onSelect callback sends selectWeapon message to server
+    - Added syncWeaponFromServer(): detects currentWeapon change on local PlayerSchema, calls shootingSystem.switchWeapon()
+    - getLocalWeaponId() now reads from server state (was hardcoded 'deagle')
+  - Updated packages/client/index.html:
+    - Full CSS for .weapon-select-overlay, .ws-title, .ws-timer, .ws-cards, .ws-card, .ws-card-selected
+    - Card layout: 200px width, dark panel (#16213e), orange border on selected, hover lift
+    - Stat rows: label (grey) + value (light), flex justify-content: space-between
+
 ## Current state
-- TASK-001 through TASK-020 + TASK-018 + TASK-023 + TASK-024 + TASK-026 all done
+- TASK-001 through TASK-020 + TASK-018 + TASK-023 + TASK-024 + TASK-026 + TASK-027 all done
 - Server: boots on 2567, room codes, nicknames, move/look with physics+collisions, game loop at 20Hz, updateSettings + startGame handlers, shoot handler with ammo/fire-rate validation + server-side hit detection + damage + kill tracking, reload handler with timer, RoundSystem state machine (weapon_select → countdown → playing → round_end → match_end), selectWeapon handler, returnToLobby handler
-- Client: Main Menu → Lobby → Playing → Match End flow, NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model, shooting system with visual effects + reload, remote player capsules synced via Colyseus, in-game HUD with reload indicator, match end screen with rematch/quit, round event listeners
+- Client: Main Menu → Lobby → Weapon Select → Playing → Match End flow, NetworkManager, App state machine, 3D warehouse scene with FPS controls, physics, weapon model, shooting system with visual effects + reload + weapon switching, remote player capsules synced via Colyseus, in-game HUD with reload indicator, weapon select screen with 3 cards + timer, match end screen with rematch/quit, round event listeners
 
 ## Next priority tasks (all deps met)
 - TASK-021: Client-side prediction (deps: TASK-020 done) — high
 - TASK-022: Entity interpolation (deps: TASK-020 done) — high
-- TASK-027: Weapon select screen (deps: TASK-026 done, TASK-018 done) — high — now unblocked!
 - TASK-028: SSG-08 model (deps: TASK-023 done) — high
 - TASK-029: MP9 model (deps: TASK-023 done) — high
 - TASK-031: Kill Feed UI (deps: TASK-018 done, TASK-024 done) — medium
 - TASK-032: Scoreboard UI (deps: TASK-018 done) — medium
 - TASK-033: Damage indicator/hitmarker (deps: TASK-018 done, TASK-024 done) — medium
-- TASK-035: Match end screen (deps: TASK-026 done) — medium — now unblocked!
-- TASK-036: MapLoader (deps: TASK-026 done) — medium — now unblocked!
+- TASK-035: Match end screen (deps: TASK-026 done) — medium
+- TASK-036: MapLoader (deps: TASK-026 done) — medium
 
 ## Notes
 - Server input handling: per-message processing (not buffered), applies physics + collisions immediately
@@ -308,7 +335,9 @@
 - GameHUD.update() called every frame in animate loop
 - HUD container appended to playing-screen div, z-index: 10
 - Crosshair is pure CSS (no canvas/WebGL), green #00ff44, 20px size
-- WeaponId in HUD is currently hardcoded 'deagle' — update after weapon switching (TASK-028)
+- WeaponId in HUD now reads from server state (currentWeapon on PlayerSchema)
+- ShootingSystem.switchWeapon() handles weapon changes: updates ammo, magazine, reloadTime, raycaster range
+- WeaponSelectScreen overlay: z-index:20 (above HUD z-index:10), shown during weapon_select phase only
 - Hit detection: server-authoritative origin (player.x/y/z + EYE_HEIGHT), client direction (validated+normalized)
 - Ray-AABB slab method and ray-sphere for headshot detection in packages/server/src/physics/hitDetection.ts
 - Head hitbox: sphere at (x, y+1.6, z) radius 0.15; Body hitbox: AABB from feet to PLAYER_HEIGHT

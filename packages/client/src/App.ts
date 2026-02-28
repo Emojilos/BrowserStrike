@@ -8,7 +8,8 @@ import { NetworkManager } from './network/NetworkManager';
 import { MenuScreen } from './ui/MenuScreen';
 import { LobbyScreen } from './ui/LobbyScreen';
 import { GameHUD } from './ui/GameHUD';
-import { PLAYER_HP, ROUND_TIME_LIMIT } from '@browserstrike/shared';
+import { WeaponSelectScreen } from './ui/WeaponSelectScreen';
+import { PLAYER_HP, ROUND_TIME_LIMIT, DEFAULT_WEAPON } from '@browserstrike/shared';
 import type { InputMessage, ShootMessage, Team, GameMode, MapId, RoundsToWin, WeaponId, RoundEndEvent, MatchEndEvent } from '@browserstrike/shared';
 
 export enum AppState {
@@ -39,6 +40,7 @@ export class App {
   private shootingSystem: ShootingSystem | null = null;
   private remotePlayers: RemotePlayerManager | null = null;
   private gameHUD: GameHUD | null = null;
+  private weaponSelectScreen: WeaponSelectScreen | null = null;
 
   // Network — always available
   readonly network: NetworkManager;
@@ -318,6 +320,14 @@ export class App {
     const playingScreen = this.screens.get(AppState.PLAYING);
     if (playingScreen) {
       this.gameHUD = new GameHUD(playingScreen);
+
+      // Weapon select overlay — shown during weapon_select phase
+      this.weaponSelectScreen = new WeaponSelectScreen(playingScreen);
+      this.weaponSelectScreen.setCallbacks({
+        onSelect: (weapon) => {
+          this.network.send('selectWeapon', { weapon });
+        },
+      });
     }
 
     // Remote players — spawn/despawn capsules from Colyseus state
@@ -336,6 +346,10 @@ export class App {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = 0;
+    }
+    if (this.weaponSelectScreen) {
+      this.weaponSelectScreen.dispose();
+      this.weaponSelectScreen = null;
     }
     if (this.gameHUD) {
       this.gameHUD.dispose();
@@ -413,8 +427,20 @@ export class App {
     const room = this.network.currentRoom;
     if (!room) return;
 
-    const state = room.state as { status?: string };
+    const state = room.state as { status?: string; roundTimer?: number };
     const gameStatus = state.status;
+
+    // Show/hide weapon select overlay
+    if (this.weaponSelectScreen) {
+      if (gameStatus === 'weapon_select') {
+        if (!this.weaponSelectScreen.isVisible()) {
+          this.weaponSelectScreen.show();
+        }
+        this.weaponSelectScreen.updateTimer(state.roundTimer ?? 0);
+      } else if (this.weaponSelectScreen.isVisible()) {
+        this.weaponSelectScreen.hide();
+      }
+    }
 
     // Transition to match_end screen
     if (gameStatus === 'match_end' && this.state === AppState.PLAYING) {
@@ -485,8 +511,12 @@ export class App {
   }
 
   private getLocalWeaponId(): WeaponId {
-    // Currently only Deagle; will be dynamic after TASK-028
-    return 'deagle';
+    if (!this.network.connected) return DEFAULT_WEAPON;
+    const room = this.network.currentRoom;
+    if (!room) return DEFAULT_WEAPON;
+    const state = room.state as { players?: Map<string, { currentWeapon?: string }> };
+    const local = state.players?.get(this.network.sessionId);
+    return (local?.currentWeapon as WeaponId) || DEFAULT_WEAPON;
   }
 
   private getScoreA(): number {
@@ -503,6 +533,21 @@ export class App {
     if (!room) return 0;
     const state = room.state as { scoreTeamB?: number };
     return state.scoreTeamB ?? 0;
+  }
+
+  /** Sync weapon from server state — triggers switchWeapon if changed. */
+  private syncWeaponFromServer(): void {
+    if (!this.shootingSystem || !this.network.connected) return;
+    const room = this.network.currentRoom;
+    if (!room) return;
+    const state = room.state as { players?: Map<string, { currentWeapon?: string }> };
+    const local = state.players?.get(this.network.sessionId);
+    if (local?.currentWeapon) {
+      const serverWeapon = local.currentWeapon as WeaponId;
+      if (serverWeapon !== this.shootingSystem.getWeaponId()) {
+        this.shootingSystem.switchWeapon(serverWeapon);
+      }
+    }
   }
 
   /** Sync ammo and reload state from server (authoritative). */
@@ -554,7 +599,8 @@ export class App {
     weapon.update(dt);
     shooting.update(dt);
 
-    // Sync ammo from authoritative server state
+    // Sync weapon and ammo from authoritative server state
+    this.syncWeaponFromServer();
     this.syncAmmoFromServer();
 
     // Send input to server after local prediction
