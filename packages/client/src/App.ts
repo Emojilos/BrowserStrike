@@ -4,6 +4,7 @@ import { FPSController } from './engine/FPSController';
 import { WeaponModel } from './engine/WeaponModel';
 import { ShootingSystem } from './engine/ShootingSystem';
 import { RemotePlayerManager } from './engine/RemotePlayerManager';
+import { ClientPrediction } from './engine/ClientPrediction';
 import { NetworkManager } from './network/NetworkManager';
 import { MenuScreen } from './ui/MenuScreen';
 import { LobbyScreen } from './ui/LobbyScreen';
@@ -39,6 +40,7 @@ export class App {
   private weaponModel: WeaponModel | null = null;
   private shootingSystem: ShootingSystem | null = null;
   private remotePlayers: RemotePlayerManager | null = null;
+  private prediction: ClientPrediction | null = null;
   private gameHUD: GameHUD | null = null;
   private weaponSelectScreen: WeaponSelectScreen | null = null;
 
@@ -307,6 +309,9 @@ export class App {
 
     this.weaponModel = new WeaponModel(window.innerWidth / window.innerHeight);
 
+    // Client-side prediction with server reconciliation
+    this.prediction = new ClientPrediction(collisionWorld);
+
     // Shooting system — raycasting, spread, visual effects, ammo tracking, reload
     this.shootingSystem = new ShootingSystem(this.sceneManager.scene);
     this.shootingSystem.setSendCallback((msg: ShootMessage) => {
@@ -359,6 +364,10 @@ export class App {
       this.remotePlayers.dispose();
       this.remotePlayers = null;
     }
+    if (this.prediction) {
+      this.prediction.clear();
+      this.prediction = null;
+    }
     if (this.shootingSystem) {
       this.shootingSystem.dispose();
       this.shootingSystem = null;
@@ -406,6 +415,8 @@ export class App {
     // Round events from server
     this.network.onMessage('countdown', (data: { seconds: number }) => {
       console.log(`Countdown: ${data.seconds}s`);
+      // Clear prediction buffer on respawn — server resets positions
+      this.prediction?.clear();
     });
 
     this.network.onMessage('roundStart', (data: { round: number }) => {
@@ -455,19 +466,22 @@ export class App {
 
   /** Read all players from Colyseus state and update remote capsule transforms. */
   private syncRemotePlayers(): void {
-    if (!this.remotePlayers || !this.network.connected) return;
+    if (!this.network.connected) return;
 
     const room = this.network.currentRoom;
     if (!room) return;
 
-    const state = room.state as { players?: Map<string, PlayerData> };
+    const state = room.state as { players?: Map<string, PlayerDataFull> };
     if (!state.players) return;
 
-    state.players.forEach((p: PlayerData, sessionId: string) => {
-      // Ensure the remote player mesh exists
-      if (sessionId !== this.network.sessionId) {
-        this.remotePlayers!.addPlayer(sessionId, p.team ?? 'unassigned');
-        this.remotePlayers!.updatePlayer(
+    state.players.forEach((p: PlayerDataFull, sessionId: string) => {
+      if (sessionId === this.network.sessionId) {
+        // Local player — reconcile prediction
+        this.reconcileLocalPlayer(p);
+      } else if (this.remotePlayers) {
+        // Remote player — update capsule
+        this.remotePlayers.addPlayer(sessionId, p.team ?? 'unassigned');
+        this.remotePlayers.updatePlayer(
           sessionId,
           p.x,
           p.y,
@@ -479,7 +493,31 @@ export class App {
     });
   }
 
-  /** Send the current input state to the server. */
+  /** Reconcile local player position with server-authoritative state. */
+  private reconcileLocalPlayer(serverPlayer: PlayerDataFull): void {
+    if (!this.prediction || !this.fpsController) return;
+
+    const serverSeq = serverPlayer.lastProcessedSeq ?? 0;
+    if (serverSeq === 0) return; // Server hasn't processed any input yet
+
+    const serverState = {
+      x: serverPlayer.x,
+      y: serverPlayer.y,
+      z: serverPlayer.z,
+      velocityY: 0,      // Server doesn't replicate velocityY
+      isGrounded: true,   // Server doesn't replicate isGrounded
+    };
+
+    const localState = this.fpsController.getPhysicsState();
+    const corrected = this.prediction.reconcile(serverSeq, serverState, localState);
+
+    // If reconcile returned a different state (teleport case), apply it
+    if (corrected !== localState) {
+      this.fpsController.setPhysicsState(corrected);
+    }
+  }
+
+  /** Send the current input state to the server and record for prediction. */
   private sendInput(dt: number): void {
     if (!this.network.connected) return;
 
@@ -495,6 +533,19 @@ export class App {
       pitch: fps.pitch,
       deltaTime: dt,
     };
+
+    // Store input for prediction reconciliation
+    if (this.prediction) {
+      const { keys } = fps.input;
+      const forward = (keys.w ? 1 : 0) - (keys.s ? 1 : 0);
+      const right = (keys.d ? 1 : 0) - (keys.a ? 1 : 0);
+      this.prediction.pushInput(this.inputSeq, {
+        forward,
+        right,
+        jump: keys.space,
+        yaw: fps.yaw,
+      }, dt);
+    }
 
     this.network.send('input', msg);
   }
@@ -599,6 +650,14 @@ export class App {
     weapon.update(dt);
     shooting.update(dt);
 
+    // Apply smooth prediction correction offset
+    if (this.prediction) {
+      const delta = this.prediction.consumeCorrectionDelta();
+      if (delta.dx !== 0 || delta.dy !== 0 || delta.dz !== 0) {
+        fps.applyPositionDelta(delta.dx, delta.dy, delta.dz);
+      }
+    }
+
     // Sync weapon and ammo from authoritative server state
     this.syncWeaponFromServer();
     this.syncAmmoFromServer();
@@ -626,11 +685,16 @@ export class App {
   };
 }
 
-/** Minimal shape for PlayerSchema fields accessed on the client. */
+/** Minimal shape for PlayerSchema fields accessed on the client (remote players). */
 interface PlayerData {
   x: number;
   y: number;
   z: number;
   yaw: number;
   team?: string;
+}
+
+/** Extended shape including fields needed for local player reconciliation. */
+interface PlayerDataFull extends PlayerData {
+  lastProcessedSeq?: number;
 }

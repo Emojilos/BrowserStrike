@@ -282,7 +282,7 @@
         "Шаг 4: Позиция не расходится с сервером со временем"
       ],
       "dependencies": ["TASK-020"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-022",

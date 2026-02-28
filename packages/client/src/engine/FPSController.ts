@@ -104,6 +104,25 @@ export class FPSController {
     this.camera.quaternion.setFromEuler(this.euler);
   }
 
+  /** Get the current physics state (for prediction buffer). */
+  getPhysicsState(): PhysicsState {
+    return { ...this.physics };
+  }
+
+  /** Override physics state (for server reconciliation). */
+  setPhysicsState(state: PhysicsState): void {
+    this.physics = { ...state };
+    this.position.set(state.x, state.y, state.z);
+  }
+
+  /** Apply a position offset (for smooth correction). */
+  applyPositionDelta(dx: number, dy: number, dz: number): void {
+    this.physics.x += dx;
+    this.physics.y += dy;
+    this.physics.z += dz;
+    this.position.set(this.physics.x, this.physics.y, this.physics.z);
+  }
+
   dispose(): void {
     this.input.dispose();
     this.pointerLock.dispose();
