@@ -626,3 +626,39 @@
   - Empty room → this.disconnect() → Colyseus auto-disposes
   - Inactivity: 10 min timeout, reset on input/shoot/joinTeam messages
   - Client unexpected disconnect (code >= 1006) returns to menu with error shown
+
+## Completed this session (continued 18)
+- TASK-034 (Spectator mode for 2v2)
+  - Created packages/client/src/engine/SpectatorSystem.ts:
+    - Activates when local player isAlive=false during 'playing' phase
+    - Smoothly interpolates camera to alive teammate's position/rotation (lerp speed 8)
+    - Uses THREE.Quaternion.slerp for smooth rotation following
+    - EYE_HEIGHT offset applied to target Y for correct camera height
+    - activate(sessionId, nickname) / deactivate() lifecycle
+    - Deactivated on countdown (respawn) and on stopGameLoop()
+  - Updated packages/client/src/engine/RemotePlayerManager.ts:
+    - Added getInterpolatedTransform(sessionId): returns interpolated x/y/z/yaw/pitch for spectator camera
+    - Reads from existing InterpolationBuffer per remote player
+  - Updated packages/client/src/ui/GameHUD.ts:
+    - Added spectatingNickname field to HUDState interface
+    - Added .hud-spectator element: "Spectating: [name]" label above HP
+    - Shows/hides based on spectatingNickname presence
+  - Updated packages/client/index.html:
+    - CSS for .hud-spectator: orange label, white bold nickname, centered above HP area
+  - Updated packages/client/src/App.ts:
+    - SpectatorSystem created in startGameLoop(), disposed in stopGameLoop()
+    - isLocalPlayerAlive(): reads isAlive from Colyseus state
+    - findAliveTeammate(): finds alive player on same team to spectate
+    - updateSpectator(dt): orchestrates spectator activation/deactivation per frame
+    - animate() loop: when spectating, skips FPS movement, weapon firing, input sending, weapon overlay
+    - Inputs consumed but discarded during spectating (prevents buffering)
+    - HUD receives spectatingNickname when spectator is active
+    - Deactivated on countdown event (respawn)
+  - TypeScript compiles cleanly for client, server, and shared packages
+- Spectator mode notes:
+  - Only activates during 'playing' game status (not weapon_select, countdown, etc.)
+  - Camera follows teammate via interpolated position (same InterpolationBuffer used for rendering)
+  - WASD/mouse inputs are consumed but not sent to server while spectating
+  - Weapon overlay hidden during spectating (dead player's weapon not shown)
+  - If no alive teammate exists, spectator deactivates (round ends soon via RoundSystem)
+  - Scoreboard still accessible via Tab while spectating

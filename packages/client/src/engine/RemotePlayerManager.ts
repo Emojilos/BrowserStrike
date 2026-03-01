@@ -124,6 +124,13 @@ export class RemotePlayerManager {
     }
   }
 
+  /** Get the interpolated transform of a specific remote player (for spectating). */
+  getInterpolatedTransform(sessionId: string): { x: number; y: number; z: number; yaw: number; pitch: number } | null {
+    const rp = this.players.get(sessionId);
+    if (!rp) return null;
+    return rp.interpolation.getInterpolated();
+  }
+
   /** Clear all interpolation buffers (e.g. on round reset). */
   clearBuffers(): void {
     for (const rp of this.players.values()) {

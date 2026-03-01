@@ -5,6 +5,7 @@ import { WeaponModel } from './engine/WeaponModel';
 import { ShootingSystem } from './engine/ShootingSystem';
 import { RemotePlayerManager } from './engine/RemotePlayerManager';
 import { ClientPrediction } from './engine/ClientPrediction';
+import { SpectatorSystem } from './engine/SpectatorSystem';
 import { NetworkManager } from './network/NetworkManager';
 import { MenuScreen } from './ui/MenuScreen';
 import { LobbyScreen } from './ui/LobbyScreen';
@@ -45,6 +46,7 @@ export class App {
   private shootingSystem: ShootingSystem | null = null;
   private remotePlayers: RemotePlayerManager | null = null;
   private prediction: ClientPrediction | null = null;
+  private spectator: SpectatorSystem | null = null;
   private gameHUD: GameHUD | null = null;
   private weaponSelectScreen: WeaponSelectScreen | null = null;
   private damageEffects: DamageEffects | null = null;
@@ -323,6 +325,9 @@ export class App {
     // Client-side prediction with server reconciliation
     this.prediction = new ClientPrediction(collisionWorld);
 
+    // Spectator system — follows alive teammate when local player is dead
+    this.spectator = new SpectatorSystem(this.sceneManager.camera);
+
     // Shooting system — raycasting, spread, visual effects, ammo tracking, reload
     this.shootingSystem = new ShootingSystem(this.sceneManager.scene);
     this.shootingSystem.setSendCallback((msg: ShootMessage) => {
@@ -396,6 +401,10 @@ export class App {
       this.remotePlayers.dispose();
       this.remotePlayers = null;
     }
+    if (this.spectator) {
+      this.spectator.deactivate();
+      this.spectator = null;
+    }
     if (this.prediction) {
       this.prediction.clear();
       this.prediction = null;
@@ -460,6 +469,8 @@ export class App {
       this.prediction?.clear();
       // Clear interpolation buffers — remote players teleport to spawn points
       this.remotePlayers?.clearBuffers();
+      // Deactivate spectator on respawn
+      this.spectator?.deactivate();
     });
 
     this.network.onMessage('roundStart', (data: { round: number }) => {
@@ -710,6 +721,88 @@ export class App {
     return { teamA, teamB, scoreA: this.getScoreA(), scoreB: this.getScoreB() };
   }
 
+  /** Check if local player is alive from server state. */
+  private isLocalPlayerAlive(): boolean {
+    if (!this.network.connected) return true;
+    const room = this.network.currentRoom;
+    if (!room) return true;
+    const state = room.state as { players?: Map<string, { isAlive?: boolean }> };
+    const local = state.players?.get(this.network.sessionId);
+    return local?.isAlive !== false;
+  }
+
+  /** Find an alive teammate to spectate. Returns { sessionId, nickname } or null. */
+  private findAliveTeammate(): { sessionId: string; nickname: string } | null {
+    if (!this.network.connected) return null;
+    const room = this.network.currentRoom;
+    if (!room) return null;
+    const state = room.state as {
+      players?: Map<string, { team?: string; isAlive?: boolean; nickname?: string }>;
+    };
+    if (!state.players) return null;
+
+    const localPlayer = state.players.get(this.network.sessionId);
+    const localTeam = localPlayer?.team;
+    if (!localTeam || localTeam === 'unassigned') return null;
+
+    let result: { sessionId: string; nickname: string } | null = null;
+    state.players.forEach((p, sid) => {
+      if (sid !== this.network.sessionId && p.team === localTeam && p.isAlive !== false) {
+        result = { sessionId: sid, nickname: p.nickname ?? 'Unknown' };
+      }
+    });
+    return result;
+  }
+
+  /** Update spectator mode: activate when dead, follow alive teammate. */
+  private updateSpectator(dt: number): void {
+    if (!this.spectator) return;
+
+    const room = this.network.currentRoom;
+    if (!room) return;
+    const gameStatus = (room.state as { status?: string }).status;
+
+    // Only spectate during playing phase
+    if (gameStatus !== 'playing') {
+      if (this.spectator.isActive()) this.spectator.deactivate();
+      return;
+    }
+
+    const alive = this.isLocalPlayerAlive();
+
+    if (alive) {
+      // Player is alive — no spectating
+      if (this.spectator.isActive()) this.spectator.deactivate();
+      return;
+    }
+
+    // Player is dead — find alive teammate
+    const teammate = this.findAliveTeammate();
+    if (!teammate) {
+      // No alive teammates — deactivate (round should end soon)
+      if (this.spectator.isActive()) this.spectator.deactivate();
+      return;
+    }
+
+    // Activate or update spectator target
+    if (!this.spectator.isActive() || this.spectator.getTargetSessionId() !== teammate.sessionId) {
+      this.spectator.activate(teammate.sessionId, teammate.nickname);
+    }
+
+    // Get interpolated position of the teammate
+    const transform = this.remotePlayers?.getInterpolatedTransform(teammate.sessionId);
+    if (transform) {
+      this.spectator.updateCamera(
+        transform.x,
+        transform.y,
+        transform.z,
+        transform.yaw,
+        transform.pitch,
+        dt,
+      );
+    }
+  }
+
   private getRoundTime(): number {
     if (!this.network.connected) return ROUND_TIME_LIMIT;
     const room = this.network.currentRoom;
@@ -756,26 +849,37 @@ export class App {
     const shooting = this.shootingSystem!;
     const scene = this.sceneManager!;
 
-    // Handle weapon switching (1/2/3 keys or scroll wheel)
-    if (fps.pointerLock.locked) {
-      this.handleWeaponSwitch(fps);
-    }
+    const isSpectating = this.spectator?.isActive() ?? false;
 
-    // Handle R key for manual reload
-    if (fps.pointerLock.locked && fps.input.consumeReload()) {
-      shooting.startReload();
-    }
-
-    // Shooting: block during reload
-    if (fps.pointerLock.locked && shooting.getAmmo() > 0 && !shooting.getIsReloading()) {
-      const fired = weapon.tryFire(fps.input.mouseDown, now);
-      if (fired) {
-        const isMoving = fps.input.keys.w || fps.input.keys.a || fps.input.keys.s || fps.input.keys.d;
-        shooting.fire(fps.position, fps.yaw, fps.pitch, isMoving);
+    if (!isSpectating) {
+      // Handle weapon switching (1/2/3 keys or scroll wheel)
+      if (fps.pointerLock.locked) {
+        this.handleWeaponSwitch(fps);
       }
+
+      // Handle R key for manual reload
+      if (fps.pointerLock.locked && fps.input.consumeReload()) {
+        shooting.startReload();
+      }
+
+      // Shooting: block during reload
+      if (fps.pointerLock.locked && shooting.getAmmo() > 0 && !shooting.getIsReloading()) {
+        const fired = weapon.tryFire(fps.input.mouseDown, now);
+        if (fired) {
+          const isMoving = fps.input.keys.w || fps.input.keys.a || fps.input.keys.s || fps.input.keys.d;
+          shooting.fire(fps.position, fps.yaw, fps.pitch, isMoving);
+        }
+      }
+
+      fps.update(dt);
+    } else {
+      // While spectating, consume inputs without acting on them
+      fps.input.consumeMouseDelta();
+      fps.input.consumeReload();
+      fps.input.consumeWeaponSlot();
+      fps.input.consumeWeaponScroll();
     }
 
-    fps.update(dt);
     weapon.update(dt);
     shooting.update(dt);
     this.damageEffects?.update(dt);
@@ -790,23 +894,28 @@ export class App {
       }
     }
 
-    // Apply smooth prediction correction offset
-    if (this.prediction) {
-      const delta = this.prediction.consumeCorrectionDelta();
-      if (delta.dx !== 0 || delta.dy !== 0 || delta.dz !== 0) {
-        fps.applyPositionDelta(delta.dx, delta.dy, delta.dz);
+    if (!isSpectating) {
+      // Apply smooth prediction correction offset
+      if (this.prediction) {
+        const delta = this.prediction.consumeCorrectionDelta();
+        if (delta.dx !== 0 || delta.dy !== 0 || delta.dz !== 0) {
+          fps.applyPositionDelta(delta.dx, delta.dy, delta.dz);
+        }
       }
+
+      // Sync weapon and ammo from authoritative server state
+      this.syncWeaponFromServer();
+      this.syncAmmoFromServer();
+
+      // Send input to server after local prediction
+      this.sendInput(dt);
     }
-
-    // Sync weapon and ammo from authoritative server state
-    this.syncWeaponFromServer();
-    this.syncAmmoFromServer();
-
-    // Send input to server after local prediction
-    this.sendInput(dt);
 
     // Interpolate remote players between server snapshots
     this.remotePlayers?.updateInterpolation();
+
+    // Update spectator mode (camera follows alive teammate when dead)
+    this.updateSpectator(dt);
 
     // Update HUD
     if (this.gameHUD) {
@@ -820,11 +929,15 @@ export class App {
         scoreA: this.getScoreA(),
         scoreB: this.getScoreB(),
         roundTime: this.getRoundTime(),
+        spectatingNickname: this.spectator?.isActive() ? this.spectator.getTargetNickname() : undefined,
       });
     }
 
     scene.render();
-    scene.renderOverlay(weapon.scene, weapon.camera);
+    // Only render weapon overlay when not spectating (dead player shouldn't see own weapon)
+    if (!isSpectating) {
+      scene.renderOverlay(weapon.scene, weapon.camera);
+    }
   };
 }
 

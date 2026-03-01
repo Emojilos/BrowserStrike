@@ -10,6 +10,7 @@ export interface HUDState {
   scoreA: number;
   scoreB: number;
   roundTime: number; // seconds remaining
+  spectatingNickname?: string; // set when spectating a teammate
 }
 
 /**
@@ -28,6 +29,7 @@ export class GameHUD {
   private scoreAEl!: HTMLElement;
   private scoreBEl!: HTMLElement;
   private timerEl!: HTMLElement;
+  private spectatorEl!: HTMLElement;
 
   constructor(parent: HTMLElement) {
     this.container = document.createElement('div');
@@ -73,6 +75,11 @@ export class GameHUD {
         <div class="hud-weapon-name">Desert Eagle</div>
         <div class="hud-reload" style="display:none;">RELOADING...</div>
       </div>
+
+      <!-- Spectator label (bottom center, above HP) -->
+      <div class="hud-spectator" style="display:none;">
+        Spectating: <span class="hud-spectator-name"></span>
+      </div>
     `;
 
     // Cache element references
@@ -84,6 +91,7 @@ export class GameHUD {
     this.scoreAEl = this.container.querySelector('.hud-score-a')!;
     this.scoreBEl = this.container.querySelector('.hud-score-b')!;
     this.timerEl = this.container.querySelector('.hud-timer')!;
+    this.spectatorEl = this.container.querySelector('.hud-spectator')!;
   }
 
   update(state: HUDState): void {
@@ -139,6 +147,15 @@ export class GameHUD {
       this.timerEl.style.color = '#ffaa00';
     } else {
       this.timerEl.style.color = '#aaa';
+    }
+
+    // Spectator label
+    if (state.spectatingNickname) {
+      this.spectatorEl.style.display = '';
+      const nameEl = this.spectatorEl.querySelector('.hud-spectator-name');
+      if (nameEl) nameEl.textContent = state.spectatingNickname;
+    } else {
+      this.spectatorEl.style.display = 'none';
     }
   }
 
