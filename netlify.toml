@@ -1,0 +1,9 @@
+[build]
+  base = "packages/client"
+  command = "cd ../shared && npx tsc && cd ../client && npx tsc && npx vite build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

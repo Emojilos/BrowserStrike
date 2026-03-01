@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.DS_Store
+*.log
+packages/client
+PRD-*.md
+progress.*
+tasks.json
+ralph.sh
+README.md
+.claude

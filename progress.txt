@@ -750,3 +750,36 @@
   - Sounds auto-schedule via ctx.currentTime — no manual timing needed
   - Future TASK-042 (spatial audio) will add PannerNode for 3D positioned sounds from remote players
   - Future TASK-044 (sound settings UI) will add slider controls for volume categories
+
+## Completed this session (continued 21)
+- TASK-048 (Deploy configuration: Dockerfile, netlify.toml, CORS, health check)
+  - Created Dockerfile (multi-stage build):
+    - Stage 1 (builder): node:20-alpine, installs all deps, builds shared then server with tsc
+    - Stage 2 (runtime): node:20-alpine, production deps only, copies dist from builder
+    - Exposes port 2567, runs node packages/server/dist/index.js
+    - NODE_ENV=production set in runtime stage
+  - Created .dockerignore:
+    - Excludes node_modules, dist, .git, packages/client, docs, and non-essential files
+    - Keeps Docker context minimal (only shared + server source needed)
+  - Created netlify.toml for client deployment:
+    - Base: packages/client, builds shared (tsc) then client (tsc + vite build)
+    - Publish: dist directory
+    - SPA redirect: /* → /index.html (status 200) for client-side routing
+  - Updated packages/server/src/index.ts:
+    - CORS_ORIGIN env var: comma-separated allowed origins (defaults to '*' for dev)
+    - getAllowedOrigin(): checks request origin against allowed list, returns matching origin
+    - OPTIONS preflight handler: returns 204 with CORS headers
+    - /health endpoint: returns {status: 'ok', uptime: process.uptime()}
+    - Default route: returns {status: 'ok', name: 'BrowserStrike', port}
+  - Created packages/client/.env.production.example:
+    - VITE_SERVER_URL=wss://your-server-domain.example.com
+  - Created packages/server/.env.example:
+    - PORT=2567, CORS_ORIGIN=https://your-client-domain.netlify.app
+  - TypeScript compiles cleanly for server, client, and shared packages
+  - Client vite build produces dist/ with 633KB JS bundle (gzipped 161KB)
+- Deploy config notes:
+  - Client already reads VITE_SERVER_URL from env (defaults to ws://localhost:2567)
+  - Server CORS: set CORS_ORIGIN to Netlify domain in production, comma-separated for multiple origins
+  - Health check at /health for container orchestration (Docker, Railway, Fly.io, etc.)
+  - Dockerfile tested: builds shared+server, production runtime with minimal image
+  - netlify.toml: SPA redirect ensures client-side routing works on Netlify

@@ -860,7 +860,7 @@
         "Шаг 4: curl health endpoint → 200 OK"
       ],
       "dependencies": [],
-      "status": "pending"
+      "status": "done"
     }
   ]
 }
