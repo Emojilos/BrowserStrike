@@ -11,6 +11,7 @@ const ROOM_CODE_LENGTH = 6;
 export interface MenuCallbacks {
   onCreateRoom: (nickname: string) => Promise<void>;
   onJoinRoom: (roomCode: string, nickname: string) => Promise<void>;
+  onOpenSettings?: () => void;
 }
 
 export class MenuScreen {
@@ -102,6 +103,16 @@ export class MenuScreen {
     panel.appendChild(this.errorEl);
 
     this.container.appendChild(panel);
+
+    // Settings button (gear icon, top-right)
+    const settingsBtn = document.createElement('button');
+    settingsBtn.className = 'menu-settings-btn';
+    settingsBtn.innerHTML = '&#9881;'; // gear symbol
+    settingsBtn.title = 'Sound Settings';
+    settingsBtn.addEventListener('click', () => {
+      if (this.callbacks?.onOpenSettings) this.callbacks.onOpenSettings();
+    });
+    this.container.appendChild(settingsBtn);
 
     // Event listeners
     this.createBtn.addEventListener('click', () => this.handleCreate());

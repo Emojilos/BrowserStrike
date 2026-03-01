@@ -927,3 +927,41 @@
   - Muzzle flash is a single persistent PointLight (already efficient, no pooling needed)
   - Quality settings accessible via app.qualitySettings for future UI integration (TASK-044 related)
   - Write-index compaction for active tracer list avoids splice() overhead during rapid fire
+
+## Completed this session (continued 26)
+- TASK-044 (Sound settings UI: volume sliders and mute toggle)
+  - Created packages/client/src/ui/SoundSettings.ts:
+    - Full-screen overlay (z-index:50) with dark panel matching project theme
+    - Three range sliders: Master Volume, Effects, Footsteps (0-100 range, maps to 0-1)
+    - Sliders update AudioManager in real-time via setVolume()
+    - Value labels show current percentage next to each slider
+    - Mute All / Unmute All toggle button
+    - Mute saves previous volumes, restores on unmute
+    - Mute state persisted to localStorage (browserstrike_muted key)
+    - Adjusting any slider while muted auto-unmutes
+    - Click outside panel closes settings
+    - Close button (×) in header
+    - show() refreshes slider values from AudioManager before displaying
+    - dispose() removes overlay from DOM
+  - Updated packages/client/src/ui/MenuScreen.ts:
+    - Added onOpenSettings callback to MenuCallbacks interface
+    - Added gear icon button (⚙) in top-right corner of menu screen
+    - Button triggers onOpenSettings callback
+  - Updated packages/client/src/App.ts:
+    - Import SoundSettings, instantiate in constructor (persists across game sessions)
+    - Wired onOpenSettings callback in initMenuScreen to soundSettings.show()
+  - Updated packages/client/index.html:
+    - CSS for .sound-settings-overlay: fixed fullscreen with backdrop blur
+    - .sound-settings-panel: 340px dark panel with rounded corners
+    - .ss-slider: custom styled range input with orange thumb (matches project accent)
+    - .ss-mute-btn: toggleable button with red state when muted
+    - .menu-settings-btn: gear icon button for menu, orange hover accent
+  - TypeScript compiles cleanly for client, server, and shared packages
+  - Client vite build succeeds
+- Sound settings notes:
+  - AudioManager already had full volume API (getVolumes, setVolume, localStorage persistence)
+  - SoundSettings is a UI wrapper around AudioManager's existing volume categories
+  - Settings panel accessible from main menu via gear icon (top-right)
+  - Mute state stored separately from volume settings (browserstrike_muted localStorage key)
+  - Volume slider range 0-100 (integer) maps to 0.0-1.0 (float) for AudioManager
+  - Panel is modal overlay — click outside or × to close

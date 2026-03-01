@@ -17,6 +17,7 @@ import { Scoreboard } from './ui/Scoreboard';
 import type { ScoreboardState, ScoreboardPlayer } from './ui/Scoreboard';
 import { DebugOverlay } from './ui/DebugOverlay';
 import { AudioManager } from './engine/AudioManager';
+import { SoundSettings } from './ui/SoundSettings';
 import { QualitySettings } from './engine/QualitySettings';
 import { PLAYER_HP, ROUND_TIME_LIMIT, DEFAULT_WEAPON, DEFAULT_MAP, WEAPON_IDS } from '@browserstrike/shared';
 import type { InputMessage, ShootMessage, Team, GameMode, MapId, RoundsToWin, WeaponId, KillEvent, RoundEndEvent, MatchEndEvent } from '@browserstrike/shared';
@@ -57,6 +58,7 @@ export class App {
   private scoreboard: Scoreboard | null = null;
   private debugOverlay: DebugOverlay | null = null;
   private audioManager: AudioManager;
+  private soundSettings: SoundSettings;
   private qualitySettings: QualitySettings;
 
   // FPS tracking
@@ -86,6 +88,7 @@ export class App {
     this.uiRoot = document.getElementById('ui-root') as HTMLElement;
     this.network = new NetworkManager();
     this.audioManager = new AudioManager();
+    this.soundSettings = new SoundSettings(this.audioManager);
     this.qualitySettings = new QualitySettings();
 
     // Resume AudioContext on first user interaction
@@ -137,6 +140,9 @@ export class App {
         await this.network.joinByCode(roomCode, nickname);
         console.log(`Joined room: ${roomCode}`);
         this.setState(AppState.LOBBY);
+      },
+      onOpenSettings: () => {
+        this.soundSettings.show();
       },
     });
   }
