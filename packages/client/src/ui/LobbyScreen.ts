@@ -258,17 +258,34 @@ export class LobbyScreen {
   }
 
   private handleCopy(): void {
-    navigator.clipboard.writeText(this.state.roomCode).then(() => {
+    const code = this.state.roomCode;
+    if (!code) return;
+
+    const showCopied = () => {
       this.copyBtn.textContent = 'Copied!';
       setTimeout(() => { this.copyBtn.textContent = 'Copy'; }, 1500);
-    }).catch(() => {
-      // Fallback: select text
-      const range = document.createRange();
-      range.selectNodeContents(this.codeDisplay);
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-    });
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(code).then(showCopied).catch(() => this.execCommandCopy(code, showCopied));
+    } else {
+      this.execCommandCopy(code, showCopied);
+    }
+  }
+
+  private execCommandCopy(text: string, onSuccess: () => void): void {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      document.execCommand('copy');
+      onSuccess();
+    } finally {
+      document.body.removeChild(ta);
+    }
   }
 
   /** Update the lobby UI from Colyseus state. */

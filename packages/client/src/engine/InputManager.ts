@@ -19,9 +19,6 @@ export class InputManager {
   /** Whether the Tab key is currently held */
   tabHeld = false;
 
-  /** Whether the backtick key was pressed this frame (consumed after read) */
-  backtickPressed = false;
-
   /** Whether the R key was pressed this frame (consumed after read) */
   reloadPressed = false;
 
@@ -50,7 +47,6 @@ export class InputManager {
   };
 
   private onKeyUp = (e: KeyboardEvent): void => {
-    if (e.code === 'Tab') e.preventDefault();
     this.setKey(e.code, false);
   };
 
@@ -62,19 +58,11 @@ export class InputManager {
       case 'KeyD': this.keys.d = pressed; break;
       case 'Space': this.keys.space = pressed; break;
       case 'KeyR': if (pressed) this.reloadPressed = true; break;
-      case 'Backquote': if (pressed) this.backtickPressed = true; break;
       case 'Digit1': if (pressed) this.weaponSlot = 1; break;
       case 'Digit2': if (pressed) this.weaponSlot = 2; break;
       case 'Digit3': if (pressed) this.weaponSlot = 3; break;
       case 'Tab': this.tabHeld = pressed; break;
     }
-  }
-
-  /** Consume and reset the backtick key press flag. */
-  consumeBacktick(): boolean {
-    const v = this.backtickPressed;
-    this.backtickPressed = false;
-    return v;
   }
 
   /** Consume and reset the reload key press flag. */

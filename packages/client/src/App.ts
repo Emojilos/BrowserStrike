@@ -79,6 +79,7 @@ export class App {
   private menuScreen: MenuScreen | null = null;
   private lobbyScreen: LobbyScreen | null = null;
   private lobbyStateInterval = 0;
+  private lobbyOnStateChange: (() => void) | null = null;
 
   // DOM references
   private readonly canvas: HTMLCanvasElement;
@@ -161,13 +162,25 @@ export class App {
     this.lobbyScreen = new LobbyScreen(lobbyEl);
     this.lobbyScreen.setCallbacks({
       onJoinTeam: (team: Team) => {
-        this.network.send('joinTeam', { team });
+        try {
+          this.network.send('joinTeam', { team });
+        } catch (err) {
+          console.error('joinTeam failed:', err);
+        }
       },
       onUpdateSettings: (settings: { mode?: GameMode; mapId?: MapId; roundsToWin?: RoundsToWin }) => {
-        this.network.send('updateSettings', settings);
+        try {
+          this.network.send('updateSettings', settings);
+        } catch (err) {
+          console.error('updateSettings failed:', err);
+        }
       },
       onStartGame: () => {
-        this.network.send('startGame', {});
+        try {
+          this.network.send('startGame', {});
+        } catch (err) {
+          console.error('startGame failed:', err);
+        }
       },
       onLeave: async () => {
         await this.network.leave();
@@ -249,6 +262,10 @@ export class App {
         clearInterval(this.lobbyStateInterval);
         this.lobbyStateInterval = 0;
       }
+      if (this.lobbyOnStateChange) {
+        this.network.currentRoom?.onStateChange.remove(this.lobbyOnStateChange);
+        this.lobbyOnStateChange = null;
+      }
     }
   }
 
@@ -269,9 +286,15 @@ export class App {
     }
 
     if (state === AppState.LOBBY) {
-      // Initial sync + poll for state changes
+      // Immediate sync + real-time updates via onStateChange
       this.syncLobbyState();
-      this.lobbyStateInterval = window.setInterval(() => this.syncLobbyState(), 200);
+      const room = this.network.currentRoom;
+      if (room) {
+        this.lobbyOnStateChange = () => this.syncLobbyState();
+        room.onStateChange(this.lobbyOnStateChange);
+      }
+      // Fallback polling in case onStateChange doesn't fire
+      this.lobbyStateInterval = window.setInterval(() => this.syncLobbyState(), 500);
     }
 
     if (state === AppState.MATCH_END) {
