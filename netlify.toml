@@ -1,6 +1,6 @@
 [build]
   base = "packages/client"
-  command = "cd ../shared && npx tsc && cd ../client && npx tsc && npx vite build"
+  command = "cd ../.. && npm install && npm run build:shared && npm run build:client"
   publish = "dist"
 
 [[redirects]]
