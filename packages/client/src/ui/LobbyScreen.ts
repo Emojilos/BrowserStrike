@@ -335,11 +335,12 @@ export class LobbyScreen {
       (sel as HTMLSelectElement).disabled = !isAdmin;
     });
 
-    // Update select values from state
+    // Update select values from state (skip focused selects to avoid disrupting user input)
     const selectEls = Array.from(selects) as HTMLSelectElement[];
-    if (selectEls[0]) selectEls[0].value = this.state.settings.mode;
-    if (selectEls[1]) selectEls[1].value = this.state.settings.mapId;
-    if (selectEls[2]) selectEls[2].value = String(this.state.settings.roundsToWin);
+    const focused = document.activeElement;
+    if (selectEls[0] && selectEls[0] !== focused) selectEls[0].value = this.state.settings.mode;
+    if (selectEls[1] && selectEls[1] !== focused) selectEls[1].value = this.state.settings.mapId;
+    if (selectEls[2] && selectEls[2] !== focused) selectEls[2].value = String(this.state.settings.roundsToWin);
 
     // Start button: only admin, only when teams are staffed
     const mode = this.state.settings.mode;

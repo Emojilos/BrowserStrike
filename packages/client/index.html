@@ -13,18 +13,22 @@
     #ui-root > * { pointer-events: auto; }
     .screen {
       width: 100%; height: 100%;
-      display: flex; align-items: center; justify-content: center;
+      display: flex; justify-content: center;
+      overflow-y: auto;
       color: #ccc; font-family: 'Segoe UI', Arial, sans-serif;
       background: #1a1a2e;
+      padding: 16px 0;
     }
 
     /* Menu panel */
     .menu-panel {
       width: 360px; padding: 40px 32px;
+      margin: auto 0;
       background: #16213e; border-radius: 12px;
       border: 1px solid #0f3460;
       box-shadow: 0 8px 32px rgba(0,0,0,0.5);
       display: flex; flex-direction: column; gap: 12px;
+      flex-shrink: 0;
     }
     .menu-title {
       font-size: 2rem; font-weight: 700; text-align: center;
@@ -87,11 +91,13 @@
 
     /* Lobby panel */
     .lobby-panel {
-      width: 520px; padding: 32px 28px;
+      width: 520px; max-width: 95vw; padding: 32px 28px;
+      margin: auto 0;
       background: #16213e; border-radius: 12px;
       border: 1px solid #0f3460;
       box-shadow: 0 8px 32px rgba(0,0,0,0.5);
       display: flex; flex-direction: column; gap: 16px;
+      flex-shrink: 0;
     }
     .lobby-header { text-align: center; }
     .lobby-code-label {
@@ -502,10 +508,12 @@
     /* Match end screen */
     .match-end-panel {
       width: 480px; padding: 40px 32px;
+      margin: auto 0;
       background: #16213e; border-radius: 12px;
       border: 1px solid #0f3460;
       box-shadow: 0 8px 32px rgba(0,0,0,0.5);
       display: flex; flex-direction: column; align-items: center; gap: 16px;
+      flex-shrink: 0;
     }
     .match-end-title {
       font-size: 1.6rem; font-weight: 700; color: #ff6b00;
