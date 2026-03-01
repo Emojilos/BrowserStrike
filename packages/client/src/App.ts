@@ -430,7 +430,7 @@ export class App {
 
     this.network.listen({
       onPlayerAdd: (sessionId, player) => {
-        const p = player as { team?: string; x?: number; y?: number; z?: number; yaw?: number; pitch?: number };
+        const p = player as { team?: string; x?: number; y?: number; z?: number; yaw?: number; pitch?: number; currentWeapon?: WeaponId };
         this.remotePlayers?.addPlayer(sessionId, p.team ?? 'unassigned');
         // Push initial snapshot for interpolation
         if (p.x !== undefined) {
@@ -442,6 +442,7 @@ export class App {
             p.yaw ?? 0,
             p.pitch ?? 0,
             p.team ?? 'unassigned',
+            p.currentWeapon,
           );
         }
       },
@@ -564,6 +565,7 @@ export class App {
           p.yaw,
           p.pitch ?? 0,
           p.team ?? 'unassigned',
+          (p as PlayerDataFull & { currentWeapon?: WeaponId }).currentWeapon,
         );
       }
     });
@@ -911,8 +913,8 @@ export class App {
       this.sendInput(dt);
     }
 
-    // Interpolate remote players between server snapshots
-    this.remotePlayers?.updateInterpolation();
+    // Interpolate remote players between server snapshots + walking animation
+    this.remotePlayers?.updateInterpolation(dt);
 
     // Update spectator mode (camera follows alive teammate when dead)
     this.updateSpectator(dt);

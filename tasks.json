@@ -692,7 +692,7 @@
         "Шаг 4: Оружие видно в руке модели"
       ],
       "dependencies": ["TASK-020"],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "TASK-041",

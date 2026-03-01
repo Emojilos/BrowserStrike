@@ -662,3 +662,44 @@
   - Weapon overlay hidden during spectating (dead player's weapon not shown)
   - If no alive teammate exists, spectator deactivates (round ends soon via RoundSystem)
   - Scoreboard still accessible via Tab while spectating
+
+## Completed this session (continued 19)
+- TASK-040 (Player models: low-poly humanoid replacing capsules)
+  - Rewrote packages/client/src/engine/RemotePlayerManager.ts:
+    - Replaced cylinder+sphere capsule with full humanoid figure built from primitives
+    - Head: SphereGeometry (radius 0.16) at y=1.55, pitches with server pitch
+    - Torso: BoxGeometry (0.36×0.45×0.20) at y=1.10, team-colored
+    - Arms: CylinderGeometry (radius 0.06, length 0.45) at shoulder height, slightly darker shade
+    - Legs: CylinderGeometry (radius 0.07, length 0.50) at hip height, dark grey (pants)
+    - Team colors applied: blue (0x4488ff) for Team A, red (0xff4444) for Team B, grey for unassigned
+    - Arms are 85% of team color for visual depth
+    - Shared geometries: all humanoid instances share the same BufferGeometry objects (only materials are per-player)
+  - Walking animation:
+    - Legs swing sinusoidally based on movement distance (walkPhase += dist * WALK_FREQUENCY)
+    - Arms swing opposite to legs (natural walking motion) at 60% amplitude
+    - Speed smoothed with exponential filter (SPEED_SMOOTH=12) to avoid jitter
+    - Animation blends out smoothly when player stops (0.85 decay per frame)
+    - Walk threshold: speed > 0.3 units/sec
+  - Weapon in hand:
+    - 3rd-person simplified weapon models for all 3 weapons (deagle, ssg08, mp9)
+    - Deagle: slide + grip boxes
+    - SSG-08: barrel cylinder + receiver box + stock box
+    - MP9: body box + magazine box
+    - Weapon positioned at right hand (ARM_X, ARM_Y - ARM_LENGTH/2, -0.12)
+    - Weapon swings with right arm during walking
+    - Weapon swapped when server currentWeapon changes (pushSnapshot detects change)
+    - Weapon geometries shared across all instances
+  - Updated pushSnapshot() signature: added optional currentWeapon parameter
+  - updateInterpolation() now accepts optional dt for animation timing
+  - Proper dispose: traverses group, disposes materials only (shared geometries preserved)
+  - Updated packages/client/src/App.ts:
+    - syncRemotePlayers() passes currentWeapon from Colyseus state to pushSnapshot()
+    - onPlayerAdd passes currentWeapon from initial player data
+    - animate() passes dt to remotePlayers.updateInterpolation(dt)
+  - TypeScript compiles cleanly for client, server, and shared packages
+- Player model notes:
+  - Head is separate mesh from body — allows future visual headshot effects
+  - Shared geometries pattern prevents memory waste when many players are in scene
+  - Walking animation driven by position delta (not server velocity) — works with interpolation
+  - Weapon swap disposes old material, builds new group from shared geometries
+  - PLAYER_HEIGHT (1.8) respected: head at 1.55, torso at 1.10, legs at 0.45
