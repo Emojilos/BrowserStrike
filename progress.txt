@@ -566,3 +566,26 @@
     - snapshotBuffer.clear() called on returnToLobby
   - No client changes needed: ShootMessage already includes timestamp field
   - TypeScript compiles cleanly for server, client, and shared packages
+
+## Completed this session (continued 16)
+- TASK-030 (Server validation and anti-cheat)
+  - Created packages/server/src/systems/AntiCheat.ts:
+    - Per-player rate limiter: sliding window of 1000ms, max 60 messages/sec
+    - isRateLimited(sessionId): checks message frequency, rejects excess, records violation
+    - clampPitch(pitch): clamps to [-PI/2, PI/2] range (prevents extreme angle exploits)
+    - checkSpeedHack(sessionId, x, y, z, deltaTime): compares horizontal distance vs PLAYER_SPEED * dt * 1.5 tolerance
+    - Speed check only flags horizontal movement >1 unit (avoids false positives from small jitter)
+    - syncPosition(sessionId, x, y, z): updates tracked position (for respawn/teleport)
+    - resetPositions(): clears all position tracking (round/match reset)
+    - Violation tracking: cumulative per player, warns every 5 violations to console
+    - addPlayer/removePlayer for lifecycle management
+  - Updated packages/server/src/rooms/GameRoom.ts:
+    - AntiCheat instantiated as class member
+    - Rate limiting added to ALL message handlers: input, shoot, reload, joinTeam, updateSettings, startGame, selectWeapon, returnToLobby
+    - Pitch clamping applied in input handler (player.pitch = antiCheat.clampPitch(message.pitch))
+    - Speed hack detection after collision resolution in input handler
+    - antiCheat.addPlayer() called in onJoin()
+    - antiCheat.removePlayer() called in onLeave()
+    - antiCheat.resetPositions() called in returnToLobby handler
+  - No client changes needed — all validation is server-side
+  - TypeScript compiles cleanly for server, client, and shared packages

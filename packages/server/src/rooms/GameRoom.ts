@@ -31,6 +31,7 @@ import { performHitDetection } from '../physics/hitDetection.js';
 import type { HitTarget } from '../physics/hitDetection.js';
 import { SnapshotBuffer } from '../physics/SnapshotBuffer.js';
 import { RoundSystem } from '../systems/RoundSystem.js';
+import { AntiCheat } from '../systems/AntiCheat.js';
 
 const NICKNAME_REGEX = /^[A-Za-z0-9_]+$/;
 
@@ -100,6 +101,7 @@ export class GameRoom extends Room<GameState> {
   private collisionWorld!: CollisionWorld;
   private roundSystem!: RoundSystem;
   private snapshotBuffer = new SnapshotBuffer();
+  private antiCheat = new AntiCheat();
 
   onCreate(options: GameRoomOptions) {
     this.setState(new GameState());
@@ -120,6 +122,7 @@ export class GameRoom extends Room<GameState> {
     // --- Message handlers ---
 
     this.onMessage('joinTeam', (client, message: JoinTeamMessage) => {
+      if (this.antiCheat.isRateLimited(client.sessionId)) return;
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
       if (message.team !== 'A' && message.team !== 'B' && message.team !== 'unassigned') return;
@@ -128,6 +131,7 @@ export class GameRoom extends Room<GameState> {
     });
 
     this.onMessage('updateSettings', (client, message: unknown) => {
+      if (this.antiCheat.isRateLimited(client.sessionId)) return;
       // Only admin can update settings
       if (client.sessionId !== this.state.adminId) return;
       if (this.state.status !== 'lobby') return;
@@ -151,6 +155,7 @@ export class GameRoom extends Room<GameState> {
     });
 
     this.onMessage('startGame', (client) => {
+      if (this.antiCheat.isRateLimited(client.sessionId)) return;
       // Only admin can start
       if (client.sessionId !== this.state.adminId) return;
       if (this.state.status !== 'lobby') return;
@@ -171,6 +176,7 @@ export class GameRoom extends Room<GameState> {
     });
 
     this.onMessage('selectWeapon', (client, message: unknown) => {
+      if (this.antiCheat.isRateLimited(client.sessionId)) return;
       if (typeof message !== 'object' || message === null) return;
       const msg = message as Record<string, unknown>;
       if (typeof msg.weapon !== 'string') return;
@@ -179,15 +185,18 @@ export class GameRoom extends Room<GameState> {
     });
 
     this.onMessage('returnToLobby', (client) => {
+      if (this.antiCheat.isRateLimited(client.sessionId)) return;
       // Only admin can return to lobby
       if (client.sessionId !== this.state.adminId) return;
       if (this.state.status !== 'match_end') return;
       this.roundSystem.returnToLobby();
       this.snapshotBuffer.clear();
+      this.antiCheat.resetPositions();
       console.log(`Room ${this.roomId} returned to lobby`);
     });
 
     this.onMessage('shoot', (client, message: unknown) => {
+      if (this.antiCheat.isRateLimited(client.sessionId)) return;
       if (!this.roundSystem.isShootingAllowed()) return;
       const player = this.state.players.get(client.sessionId);
       if (!player || !player.isAlive) return;
@@ -325,6 +334,7 @@ export class GameRoom extends Room<GameState> {
     });
 
     this.onMessage('reload', (client) => {
+      if (this.antiCheat.isRateLimited(client.sessionId)) return;
       if (!this.roundSystem.isPlayable()) return;
       const player = this.state.players.get(client.sessionId);
       if (!player || !player.isAlive) return;
@@ -349,6 +359,7 @@ export class GameRoom extends Room<GameState> {
     });
 
     this.onMessage('input', (client, message: unknown) => {
+      if (this.antiCheat.isRateLimited(client.sessionId)) return;
       if (!this.roundSystem.isPlayable()) return;
       if (!validateInput(message)) {
         console.warn(`Invalid input from ${client.sessionId}`);
@@ -358,9 +369,9 @@ export class GameRoom extends Room<GameState> {
       const player = this.state.players.get(client.sessionId);
       if (!player || !player.isAlive) return;
 
-      // Update rotation immediately
+      // Clamp pitch to valid range (prevents exploits with extreme pitch)
       player.yaw = message.yaw;
-      player.pitch = message.pitch;
+      player.pitch = this.antiCheat.clampPitch(message.pitch);
 
       // Convert key booleans to movement input
       const forward = (message.keys.w ? 1 : 0) - (message.keys.s ? 1 : 0);
@@ -386,6 +397,15 @@ export class GameRoom extends Room<GameState> {
 
       // Resolve collisions
       const resolved = this.collisionWorld.resolve(physState);
+
+      // Speed hack detection: check if resulting position is plausible
+      this.antiCheat.checkSpeedHack(
+        client.sessionId,
+        resolved.x,
+        resolved.y,
+        resolved.z,
+        message.deltaTime,
+      );
 
       // Update player state
       player.x = resolved.x;
@@ -425,6 +445,7 @@ export class GameRoom extends Room<GameState> {
     player.ammo = WEAPONS[DEFAULT_WEAPON].magazine;
 
     this.state.players.set(client.sessionId, player);
+    this.antiCheat.addPlayer(client.sessionId);
 
     // First player to join becomes admin
     if (this.state.adminId === '') {
@@ -440,6 +461,7 @@ export class GameRoom extends Room<GameState> {
     const player = this.state.players.get(client.sessionId);
     const nickname = player?.nickname ?? 'unknown';
     this.state.players.delete(client.sessionId);
+    this.antiCheat.removePlayer(client.sessionId);
 
     // Reassign admin if the admin left
     if (this.state.adminId === client.sessionId) {
