@@ -1041,10 +1041,6 @@ export class App {
     this.damageEffects?.update(dt);
     this.killFeed?.update(dt);
 
-    // Debug overlay: toggle on backtick, update FPS counter
-    if (fps.input.consumeBacktick()) {
-      this.debugOverlay?.toggle();
-    }
     if (this.debugOverlay?.isVisible()) {
       this.fpsFrameCount++;
       this.fpsAccumulator += dt;
