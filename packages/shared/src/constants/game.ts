@@ -1,5 +1,5 @@
 export const TICK_RATE = 20;
-export const PLAYER_SPEED = 250; // units/sec
+export const PLAYER_SPEED = 6; // units/sec (≈ 6 m/s, similar to CS run speed)
 export const JUMP_VELOCITY = 8;
 export const GRAVITY = -20;
 export const PLAYER_HP = 100;
