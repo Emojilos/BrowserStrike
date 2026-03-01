@@ -15,6 +15,7 @@ import { DamageEffects } from './ui/DamageEffects';
 import { KillFeed } from './ui/KillFeed';
 import { Scoreboard } from './ui/Scoreboard';
 import type { ScoreboardState, ScoreboardPlayer } from './ui/Scoreboard';
+import { DebugOverlay } from './ui/DebugOverlay';
 import { AudioManager } from './engine/AudioManager';
 import { PLAYER_HP, ROUND_TIME_LIMIT, DEFAULT_WEAPON, DEFAULT_MAP, WEAPON_IDS } from '@browserstrike/shared';
 import type { InputMessage, ShootMessage, Team, GameMode, MapId, RoundsToWin, WeaponId, KillEvent, RoundEndEvent, MatchEndEvent } from '@browserstrike/shared';
@@ -53,7 +54,17 @@ export class App {
   private damageEffects: DamageEffects | null = null;
   private killFeed: KillFeed | null = null;
   private scoreboard: Scoreboard | null = null;
+  private debugOverlay: DebugOverlay | null = null;
   private audioManager: AudioManager;
+
+  // FPS tracking
+  private fpsFrameCount = 0;
+  private fpsAccumulator = 0;
+  private currentFps = 0;
+
+  // Ping estimation
+  private pingSeqSendTimes: Map<number, number> = new Map();
+  private estimatedPing = 0;
 
   // Network — always available
   readonly network: NetworkManager;
@@ -376,6 +387,9 @@ export class App {
 
       // Scoreboard — shown while Tab is held
       this.scoreboard = new Scoreboard(playingScreen);
+
+      // Debug overlay — toggled by backtick
+      this.debugOverlay = new DebugOverlay(playingScreen);
     }
 
     // Remote players — spawn/despawn capsules from Colyseus state
@@ -394,6 +408,10 @@ export class App {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = 0;
+    }
+    if (this.debugOverlay) {
+      this.debugOverlay.dispose();
+      this.debugOverlay = null;
     }
     if (this.scoreboard) {
       this.scoreboard.dispose();
@@ -600,6 +618,16 @@ export class App {
     const serverSeq = serverPlayer.lastProcessedSeq ?? 0;
     if (serverSeq === 0) return; // Server hasn't processed any input yet
 
+    // Ping estimation: RTT from input send → server ack
+    const sendTime = this.pingSeqSendTimes.get(serverSeq);
+    if (sendTime) {
+      this.estimatedPing = Math.round(performance.now() - sendTime);
+      // Clean up acked and older entries
+      for (const [seq] of this.pingSeqSendTimes) {
+        if (seq <= serverSeq) this.pingSeqSendTimes.delete(seq);
+      }
+    }
+
     const serverState = {
       x: serverPlayer.x,
       y: serverPlayer.y,
@@ -648,6 +676,13 @@ export class App {
     }
 
     this.network.send('input', msg);
+
+    // Record send time for ping estimation (keep only last 60 entries)
+    this.pingSeqSendTimes.set(this.inputSeq, performance.now());
+    if (this.pingSeqSendTimes.size > 60) {
+      const oldest = this.pingSeqSendTimes.keys().next().value!;
+      this.pingSeqSendTimes.delete(oldest);
+    }
   }
 
   // ── Data helpers ────────────────────────────────────────
@@ -836,6 +871,27 @@ export class App {
     }
   }
 
+  private getDebugState() {
+    const pos = this.fpsController?.position ?? { x: 0, y: 0, z: 0 };
+    let playerCount = 0;
+    let serverTick = 0;
+    const room = this.network.currentRoom;
+    if (room) {
+      const state = room.state as { players?: Map<string, unknown>; currentRound?: number };
+      playerCount = state.players?.size ?? 0;
+      serverTick = state.currentRound ?? 0;
+    }
+    return {
+      fps: this.currentFps,
+      ping: this.estimatedPing,
+      posX: pos.x,
+      posY: pos.y,
+      posZ: pos.z,
+      playerCount,
+      serverTick,
+    };
+  }
+
   private getRoundTime(): number {
     if (!this.network.connected) return ROUND_TIME_LIMIT;
     const room = this.network.currentRoom;
@@ -924,6 +980,21 @@ export class App {
     shooting.update(dt);
     this.damageEffects?.update(dt);
     this.killFeed?.update(dt);
+
+    // Debug overlay: toggle on backtick, update FPS counter
+    if (fps.input.consumeBacktick()) {
+      this.debugOverlay?.toggle();
+    }
+    if (this.debugOverlay?.isVisible()) {
+      this.fpsFrameCount++;
+      this.fpsAccumulator += dt;
+      if (this.fpsAccumulator >= 1) {
+        this.currentFps = Math.round(this.fpsFrameCount / this.fpsAccumulator);
+        this.fpsFrameCount = 0;
+        this.fpsAccumulator = 0;
+      }
+      this.debugOverlay.update(this.getDebugState());
+    }
 
     // Scoreboard: show/hide on Tab hold, update data
     if (this.scoreboard) {

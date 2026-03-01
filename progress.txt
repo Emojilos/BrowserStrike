@@ -822,3 +822,37 @@
   - loadMap() is sync for procedural maps; loadMapAsync() for future GLTF loading
   - Collision extraction from GLTF uses naming convention: meshes ending in "_collision"
   - Unknown mapId falls back to Warehouse data (graceful degradation)
+
+## Completed this session (continued 23)
+- TASK-046 (Debug overlay: FPS, ping, position, players, server tick)
+  - Created packages/client/src/ui/DebugOverlay.ts:
+    - Semi-transparent panel (rgba(0,0,0,0.65)) in top-left corner, z-index:30
+    - 5 rows: FPS, PING (ms), POS (x,y,z), PLAYERS, TICK
+    - FPS color-coded: green >=50, orange 30-49, red <30
+    - toggle() method for backtick key, isVisible() guard skips update when hidden
+    - dispose() removes container from DOM
+  - Updated packages/client/src/engine/InputManager.ts:
+    - Added backtickPressed flag (edge-triggered, Backquote key)
+    - consumeBacktick() returns and resets the flag
+  - Updated packages/client/src/App.ts:
+    - DebugOverlay created in startGameLoop() alongside other UI components
+    - Disposed in stopGameLoop()
+    - FPS tracking: fpsFrameCount + fpsAccumulator, updates currentFps every second
+    - Ping estimation: records performance.now() when input sent, computes RTT when server acks via lastProcessedSeq
+    - pingSeqSendTimes map capped at 60 entries, cleaned on server ack
+    - getDebugState() reads position from FPSController, playerCount + currentRound from Colyseus state
+    - animate() loop: consumeBacktick() toggles overlay, update() called when visible
+  - Updated packages/client/index.html:
+    - CSS for .debug-overlay: monospace font, absolute top-left, dark semi-transparent background
+    - .debug-row: flex space-between layout for label + value
+    - .debug-label grey, .debug-value bold white
+  - TypeScript compiles cleanly for client, server, and shared packages
+  - Client build succeeds (vite build produces dist/)
+- Debug overlay notes:
+  - Backtick (`) toggles visibility — no interference with gameplay
+  - FPS measured client-side via frame count per second accumulator
+  - Ping estimated via input seq → server lastProcessedSeq round-trip timing
+  - Position shows FPSController.position (x,y,z) with 1 decimal precision
+  - Players count from Colyseus state.players map size
+  - Server tick shows currentRound from game state
+  - Overlay is pointer-events:none — doesn't interfere with mouse/clicks
