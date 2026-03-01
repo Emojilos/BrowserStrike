@@ -589,3 +589,40 @@
     - antiCheat.resetPositions() called in returnToLobby handler
   - No client changes needed — all validation is server-side
   - TypeScript compiles cleanly for server, client, and shared packages
+
+## Completed this session (continued 17)
+- TASK-047 (Disconnect handling)
+  - Updated packages/server/src/rooms/GameRoom.ts onLeave():
+    - In-game disconnect: marks player as dead (isAlive=false, hp=0) before removing from state
+    - Broadcasts 'playerDisconnected' notification with nickname to all remaining players
+    - Admin reassignment: logs when admin changes to new player
+    - Empty room auto-destruction: calls this.disconnect() when last player leaves
+    - Calls roundSystem.onPlayerDisconnected() to check team elimination after disconnect
+  - Added inactivity timeout (10 minutes):
+    - INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000
+    - resetInactivityTimer(): clears and re-sets setTimeout, calls this.disconnect() on expiry
+    - Timer reset on every message handler (input, shoot, joinTeam)
+    - Timer cleared on room dispose and when room empties
+  - Updated packages/server/src/systems/RoundSystem.ts:
+    - Added onPlayerDisconnected(): checks team elimination during playing phase
+    - If all players on one team are dead/disconnected, ends round for opposing team
+    - Guards: only checks during playable phase (not countdown, weapon_select, etc.)
+  - Updated packages/client/src/ui/KillFeed.ts:
+    - Added addNotification(text): system message entries with italic styling
+    - Uses .kf-system and .kf-system-text CSS classes
+    - Same fade-out behavior as kill entries (5s display + 0.5s fade)
+  - Updated packages/client/src/App.ts:
+    - Network listener for 'playerDisconnected': shows "[nickname] disconnected" in kill feed
+    - onLeave handler (code >= 1006): unexpected disconnect → return to MENU with error message
+  - Updated packages/client/src/ui/MenuScreen.ts:
+    - Made showError() public (was private) for use from App.ts on disconnect
+  - Updated packages/client/index.html:
+    - CSS for .kf-system (italic) and .kf-system-text (grey, smaller font)
+  - TypeScript compiles cleanly for server, client, and shared packages
+- Disconnect handling notes:
+  - In lobby: player removed from state immediately, others see via Colyseus state sync + notification
+  - In game: player marked dead → team elimination check → possible round end
+  - 2v2: if both teammates disconnect → all dead → round awarded to opponents
+  - Empty room → this.disconnect() → Colyseus auto-disposes
+  - Inactivity: 10 min timeout, reset on input/shoot/joinTeam messages
+  - Client unexpected disconnect (code >= 1006) returns to menu with error shown

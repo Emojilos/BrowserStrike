@@ -443,6 +443,14 @@ export class App {
         this.syncRemotePlayers();
         this.checkGameStatus();
       },
+      onLeave: (code) => {
+        // Unexpected disconnect (code >= 1000 means not consented/normal)
+        if (code >= 1006) {
+          console.warn(`Disconnected from server (code: ${code})`);
+          this.setState(AppState.MENU);
+          this.menuScreen?.showError('Disconnected from server');
+        }
+      },
     });
 
     // Round events from server
@@ -474,6 +482,11 @@ export class App {
     // Kill event — add to kill feed
     this.network.onMessage('kill', (data: KillEvent) => {
       this.killFeed?.addKill(data);
+    });
+
+    // Player disconnected — show notification in kill feed
+    this.network.onMessage('playerDisconnected', (data: { nickname: string }) => {
+      this.killFeed?.addNotification(`${data.nickname} disconnected`);
     });
 
     // Damage received — show red vignette with direction indicator

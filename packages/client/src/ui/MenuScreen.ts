@@ -136,7 +136,7 @@ export class MenuScreen {
     return null;
   }
 
-  private showError(msg: string): void {
+  showError(msg: string): void {
     this.errorEl.textContent = msg;
     this.errorEl.style.display = 'block';
   }

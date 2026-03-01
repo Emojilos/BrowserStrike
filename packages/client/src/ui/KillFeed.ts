@@ -51,6 +51,23 @@ export class KillFeed {
     }
   }
 
+  /** Add a system notification to the feed (e.g., player disconnected). */
+  addNotification(text: string): void {
+    const el = document.createElement('div');
+    el.className = 'kill-feed-entry kf-system';
+
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    el.innerHTML = `<span class="kf-system-text">${esc(text)}</span>`;
+
+    this.container.appendChild(el);
+    this.entries.push({ el, age: 0, fading: false });
+
+    while (this.entries.length > MAX_ENTRIES) {
+      const removed = this.entries.shift()!;
+      removed.el.remove();
+    }
+  }
+
   /** Call every frame to age entries and fade them out. */
   update(dt: number): void {
     for (let i = this.entries.length - 1; i >= 0; i--) {

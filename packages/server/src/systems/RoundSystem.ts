@@ -296,6 +296,22 @@ export class RoundSystem {
     return this.isPlayable();
   }
 
+  /**
+   * Called when a player disconnects during an active game phase.
+   * Checks if the disconnect causes a team to be fully eliminated.
+   */
+  onPlayerDisconnected(): void {
+    // Only matters during playing phase
+    if (this.state.status !== 'playing') return;
+    // Only check if past countdown
+    if (!this.isPlayable()) return;
+
+    const winner = this.checkTeamElimination();
+    if (winner) {
+      this.enterRoundEnd(winner);
+    }
+  }
+
   /** Reset for returning to lobby (e.g., after match end rematch). */
   returnToLobby(): void {
     this.state.status = 'lobby';

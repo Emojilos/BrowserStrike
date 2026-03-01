@@ -96,12 +96,16 @@ export interface GameRoomOptions {
   roomCode?: string;
 }
 
+/** Inactivity timeout: destroy room after 10 minutes of no messages. */
+const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
+
 export class GameRoom extends Room<GameState> {
   maxClients = MAX_PLAYERS_PER_ROOM;
   private collisionWorld!: CollisionWorld;
   private roundSystem!: RoundSystem;
   private snapshotBuffer = new SnapshotBuffer();
   private antiCheat = new AntiCheat();
+  private inactivityTimeout: ReturnType<typeof setTimeout> | null = null;
 
   onCreate(options: GameRoomOptions) {
     this.setState(new GameState());
@@ -122,6 +126,7 @@ export class GameRoom extends Room<GameState> {
     // --- Message handlers ---
 
     this.onMessage('joinTeam', (client, message: JoinTeamMessage) => {
+      this.resetInactivityTimer();
       if (this.antiCheat.isRateLimited(client.sessionId)) return;
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
@@ -196,6 +201,7 @@ export class GameRoom extends Room<GameState> {
     });
 
     this.onMessage('shoot', (client, message: unknown) => {
+      this.resetInactivityTimer();
       if (this.antiCheat.isRateLimited(client.sessionId)) return;
       if (!this.roundSystem.isShootingAllowed()) return;
       const player = this.state.players.get(client.sessionId);
@@ -359,6 +365,7 @@ export class GameRoom extends Room<GameState> {
     });
 
     this.onMessage('input', (client, message: unknown) => {
+      this.resetInactivityTimer();
       if (this.antiCheat.isRateLimited(client.sessionId)) return;
       if (!this.roundSystem.isPlayable()) return;
       if (!validateInput(message)) {
@@ -422,7 +429,21 @@ export class GameRoom extends Room<GameState> {
     // Expose room code as metadata so clients can find rooms by code
     this.setMetadata({ roomCode: this.state.roomCode });
 
+    // Start inactivity timer (resets on every message via rate limiter / handlers)
+    this.resetInactivityTimer();
+
     console.log(`GameRoom created | id: ${this.roomId} | code: ${this.state.roomCode}`);
+  }
+
+  /** Reset the inactivity timer — called on every player message. */
+  private resetInactivityTimer(): void {
+    if (this.inactivityTimeout) {
+      clearTimeout(this.inactivityTimeout);
+    }
+    this.inactivityTimeout = setTimeout(() => {
+      console.log(`Room ${this.roomId} destroyed due to inactivity (${INACTIVITY_TIMEOUT_MS / 1000}s)`);
+      this.disconnect();
+    }, INACTIVITY_TIMEOUT_MS);
   }
 
   private onTick() {
@@ -460,19 +481,53 @@ export class GameRoom extends Room<GameState> {
   onLeave(client: Client, consented: boolean) {
     const player = this.state.players.get(client.sessionId);
     const nickname = player?.nickname ?? 'unknown';
+    const wasInGame = this.state.status !== 'lobby' && this.state.status !== 'match_end';
+
+    // If in an active game phase, mark player as dead before removing
+    if (wasInGame && player && player.isAlive) {
+      player.isAlive = false;
+      player.hp = 0;
+    }
+
     this.state.players.delete(client.sessionId);
     this.antiCheat.removePlayer(client.sessionId);
+
+    // Broadcast disconnect notification to remaining players
+    this.broadcast('playerDisconnected', { nickname });
 
     // Reassign admin if the admin left
     if (this.state.adminId === client.sessionId) {
       const remaining = Array.from(this.state.players.keys());
       this.state.adminId = remaining.length > 0 ? remaining[0] : '';
+      if (this.state.adminId) {
+        console.log(`Admin reassigned to ${this.state.adminId}`);
+      }
     }
 
     console.log(`Player left: ${client.sessionId} (${nickname}, consented: ${consented})`);
+
+    // If room is now empty, disconnect (auto-destroy)
+    if (this.state.players.size === 0) {
+      console.log(`Room ${this.roomId} is empty — auto-destroying`);
+      if (this.inactivityTimeout) {
+        clearTimeout(this.inactivityTimeout);
+        this.inactivityTimeout = null;
+      }
+      this.disconnect();
+      return;
+    }
+
+    // If in an active game phase, check if the disconnect affects round outcome
+    if (wasInGame) {
+      this.roundSystem.onPlayerDisconnected();
+    }
   }
 
   onDispose() {
+    if (this.inactivityTimeout) {
+      clearTimeout(this.inactivityTimeout);
+      this.inactivityTimeout = null;
+    }
     console.log(`GameRoom disposed | id: ${this.roomId}`);
   }
 }
