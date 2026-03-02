@@ -6,7 +6,8 @@ import type { CollisionWorld } from './CollisionWorld';
 
 const DEG2RAD = Math.PI / 180;
 const MAX_PITCH = 89 * DEG2RAD;
-const MOUSE_SENSITIVITY = 0.002;
+const BASE_SENSITIVITY = 0.002;
+const LS_KEY = 'browserstrike_sensitivity';
 
 /**
  * First-person shooter controller:
@@ -20,6 +21,7 @@ export class FPSController {
 
   yaw = 0;
   pitch = 0;
+  private sensitivity = 1.0;
 
   /** World position of the player's feet */
   readonly position = new THREE.Vector3(0, 0, 5);
@@ -40,6 +42,23 @@ export class FPSController {
     this.input = new InputManager();
     this.pointerLock = new PointerLock(canvas);
     this.camera.position.set(this.position.x, this.position.y + EYE_HEIGHT, this.position.z);
+    this.loadSensitivity();
+  }
+
+  getSensitivity(): number {
+    return this.sensitivity;
+  }
+
+  setSensitivity(value: number): void {
+    this.sensitivity = Math.max(0.1, Math.min(5.0, value));
+    try { localStorage.setItem(LS_KEY, String(this.sensitivity)); } catch { /* ignore */ }
+  }
+
+  private loadSensitivity(): void {
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) this.sensitivity = Math.max(0.1, Math.min(5.0, parseFloat(saved)));
+    } catch { /* ignore */ }
   }
 
   setCollisionWorld(world: CollisionWorld): void {
@@ -56,8 +75,9 @@ export class FPSController {
     if (!this.pointerLock.locked) return;
 
     const { dx, dy } = this.input.consumeMouseDelta();
-    this.yaw -= dx * MOUSE_SENSITIVITY;
-    this.pitch -= dy * MOUSE_SENSITIVITY;
+    const sens = this.sensitivity * BASE_SENSITIVITY;
+    this.yaw -= dx * sens;
+    this.pitch -= dy * sens;
     this.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, this.pitch));
   }
 

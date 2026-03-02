@@ -13,6 +13,8 @@ export interface MenuCallbacks {
   onJoinRoom: (roomCode: string, nickname: string) => Promise<void>;
   onOpenSettings?: () => void;
   onOpenCrosshairSettings?: () => void;
+  onOpenGraphicsSettings?: () => void;
+  onOpenMouseSettings?: () => void;
 }
 
 export class MenuScreen {
@@ -108,6 +110,24 @@ export class MenuScreen {
     // Settings buttons row (top-right)
     const settingsBtnRow = document.createElement('div');
     settingsBtnRow.className = 'menu-settings-row';
+
+    const mouseBtn = document.createElement('button');
+    mouseBtn.className = 'menu-settings-btn';
+    mouseBtn.innerHTML = '&#8982;'; // target/aim symbol
+    mouseBtn.title = 'Mouse Settings';
+    mouseBtn.addEventListener('click', () => {
+      if (this.callbacks?.onOpenMouseSettings) this.callbacks.onOpenMouseSettings();
+    });
+    settingsBtnRow.appendChild(mouseBtn);
+
+    const graphicsBtn = document.createElement('button');
+    graphicsBtn.className = 'menu-settings-btn';
+    graphicsBtn.innerHTML = '&#9724;'; // display symbol
+    graphicsBtn.title = 'Graphics Settings';
+    graphicsBtn.addEventListener('click', () => {
+      if (this.callbacks?.onOpenGraphicsSettings) this.callbacks.onOpenGraphicsSettings();
+    });
+    settingsBtnRow.appendChild(graphicsBtn);
 
     const crosshairBtn = document.createElement('button');
     crosshairBtn.className = 'menu-settings-btn';

@@ -20,6 +20,8 @@ import { AudioManager } from './engine/AudioManager';
 import { SoundSettings } from './ui/SoundSettings';
 import { CrosshairSettings } from './ui/CrosshairSettings';
 import { QualitySettings } from './engine/QualitySettings';
+import { GraphicsSettings } from './ui/GraphicsSettings';
+import { MouseSettings } from './ui/MouseSettings';
 import { PLAYER_HP, ROUND_TIME_LIMIT, DEFAULT_WEAPON, DEFAULT_MAP, WEAPON_IDS } from '@browserstrike/shared';
 import type { InputMessage, ShootMessage, Team, GameMode, MapId, RoundsToWin, WeaponId, KillEvent, RoundEndEvent, MatchEndEvent } from '@browserstrike/shared';
 
@@ -62,6 +64,8 @@ export class App {
   private soundSettings: SoundSettings;
   private crosshairSettings: CrosshairSettings;
   private qualitySettings: QualitySettings;
+  private graphicsSettings: GraphicsSettings;
+  private mouseSettings: MouseSettings;
 
   // FPS tracking
   private fpsFrameCount = 0;
@@ -95,6 +99,16 @@ export class App {
     this.crosshairSettings = new CrosshairSettings();
     this.crosshairSettings.setOnUpdate(() => this.crosshairSettings.applyToHUD());
     this.qualitySettings = new QualitySettings();
+    this.graphicsSettings = new GraphicsSettings(this.qualitySettings);
+    this.graphicsSettings.setOnApply(() => {
+      if (this.sceneManager) {
+        this.qualitySettings.applyToRenderer(this.sceneManager.renderer, this.sceneManager.scene);
+      }
+    });
+    this.mouseSettings = new MouseSettings();
+    this.mouseSettings.setOnUpdate((sens) => {
+      this.fpsController?.setSensitivity(sens);
+    });
 
     // Resume AudioContext on first user interaction
     const resumeAudio = () => {
@@ -151,6 +165,12 @@ export class App {
       },
       onOpenCrosshairSettings: () => {
         this.crosshairSettings.show();
+      },
+      onOpenGraphicsSettings: () => {
+        this.graphicsSettings.show();
+      },
+      onOpenMouseSettings: () => {
+        this.mouseSettings.show();
       },
     });
   }
@@ -709,8 +729,8 @@ export class App {
       x: serverPlayer.x,
       y: serverPlayer.y,
       z: serverPlayer.z,
-      velocityY: 0,      // Server doesn't replicate velocityY
-      isGrounded: true,   // Server doesn't replicate isGrounded
+      velocityY: serverPlayer.velocityY ?? 0,
+      isGrounded: serverPlayer.isGrounded ?? true,
     };
 
     const localState = this.fpsController.getPhysicsState();
@@ -1144,4 +1164,6 @@ interface PlayerData {
 /** Extended shape including fields needed for local player reconciliation. */
 interface PlayerDataFull extends PlayerData {
   lastProcessedSeq?: number;
+  velocityY?: number;
+  isGrounded?: boolean;
 }

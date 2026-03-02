@@ -1,6 +1,15 @@
 import * as THREE from 'three';
 
-export type QualityLevel = 'low' | 'medium' | 'high';
+export type QualityLevel = 'very_low' | 'low' | 'medium' | 'high';
+
+export const QUALITY_LABELS: Record<QualityLevel, string> = {
+  very_low: 'Very Low',
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+};
+
+export const QUALITY_ORDER: QualityLevel[] = ['very_low', 'low', 'medium', 'high'];
 
 interface QualityConfig {
   pixelRatio: number;
@@ -12,6 +21,14 @@ interface QualityConfig {
 }
 
 const QUALITY_CONFIGS: Record<QualityLevel, QualityConfig> = {
+  very_low: {
+    pixelRatio: 0.5,
+    fogNear: 15,
+    fogFar: 30,
+    maxDecals: 8,
+    maxTracers: 4,
+    antialias: false,
+  },
   low: {
     pixelRatio: 1,
     fogNear: 20,

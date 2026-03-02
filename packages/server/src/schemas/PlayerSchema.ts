@@ -35,9 +35,9 @@ export class PlayerSchema extends Schema {
   @type('uint16') kills!: number;
   @type('uint16') deaths!: number;
 
-  // Server-only state (not replicated via @type)
-  velocityY: number = 0;
-  isGrounded: boolean = true;
+  // Physics state (replicated for client-side prediction reconciliation)
+  @type('float32') velocityY: number = 0;
+  @type('boolean') isGrounded: boolean = true;
   lastShootTime: number = 0;
 
   constructor() {
