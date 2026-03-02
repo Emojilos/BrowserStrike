@@ -24,6 +24,7 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
     spread: { base: 0.005, moving: 0.08, sustained: 0 },
     range: 150,
     automatic: false,
+    scope: { fov: 25, spreadMultiplier: 0.2 },
   },
   mp9: {
     id: 'mp9',

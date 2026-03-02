@@ -88,6 +88,10 @@ export class WeaponModel {
     return this.weaponId;
   }
 
+  setVisible(visible: boolean): void {
+    this.weaponGroup.visible = visible;
+  }
+
   private clearWeaponGroup(): void {
     while (this.weaponGroup.children.length > 0) {
       const child = this.weaponGroup.children[0];

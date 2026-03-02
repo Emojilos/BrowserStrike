@@ -16,4 +16,8 @@ export interface WeaponConfig {
   };
   range: number; // effective range in units
   automatic: boolean;
+  scope?: {
+    fov: number; // zoomed FOV (normal is 75)
+    spreadMultiplier: number; // spread multiplier when scoped (e.g. 0.2 = 80% less)
+  };
 }

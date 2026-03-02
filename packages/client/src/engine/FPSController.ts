@@ -8,6 +8,9 @@ const DEG2RAD = Math.PI / 180;
 const MAX_PITCH = 89 * DEG2RAD;
 const BASE_SENSITIVITY = 0.002;
 const LS_KEY = 'browserstrike_sensitivity';
+const DEFAULT_FOV = 75;
+const SCOPE_SENS_MULTIPLIER = 0.4;
+const SCOPE_ZOOM_SPEED = 12; // lerp speed for FOV transition
 
 /**
  * First-person shooter controller:
@@ -22,6 +25,11 @@ export class FPSController {
   yaw = 0;
   pitch = 0;
   private sensitivity = 1.0;
+
+  private _scoped = false;
+  private scopeFov = DEFAULT_FOV;
+  private targetFov = DEFAULT_FOV;
+  private currentFov = DEFAULT_FOV;
 
   /** World position of the player's feet */
   readonly position = new THREE.Vector3(0, 0, 5);
@@ -65,9 +73,24 @@ export class FPSController {
     this.collisionWorld = world;
   }
 
+  setScoped(scoped: boolean, fov?: number): void {
+    this._scoped = scoped;
+    if (scoped && fov !== undefined) {
+      this.scopeFov = fov;
+      this.targetFov = fov;
+    } else {
+      this.targetFov = DEFAULT_FOV;
+    }
+  }
+
+  isScoped(): boolean {
+    return this._scoped;
+  }
+
   update(dt: number): void {
     this.updateRotation();
     this.updateMovement(dt);
+    this.updateFov(dt);
     this.syncCamera();
   }
 
@@ -75,7 +98,8 @@ export class FPSController {
     if (!this.pointerLock.locked) return;
 
     const { dx, dy } = this.input.consumeMouseDelta();
-    const sens = this.sensitivity * BASE_SENSITIVITY;
+    let sens = this.sensitivity * BASE_SENSITIVITY;
+    if (this._scoped) sens *= SCOPE_SENS_MULTIPLIER;
     this.yaw -= dx * sens;
     this.pitch -= dy * sens;
     this.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, this.pitch));
@@ -108,6 +132,19 @@ export class FPSController {
     );
 
     this.position.set(this.physics.x, this.physics.y, this.physics.z);
+  }
+
+  private updateFov(dt: number): void {
+    if (Math.abs(this.currentFov - this.targetFov) > 0.1) {
+      const t = 1 - Math.exp(-SCOPE_ZOOM_SPEED * dt);
+      this.currentFov += (this.targetFov - this.currentFov) * t;
+      this.camera.fov = this.currentFov;
+      this.camera.updateProjectionMatrix();
+    } else if (this.currentFov !== this.targetFov) {
+      this.currentFov = this.targetFov;
+      this.camera.fov = this.currentFov;
+      this.camera.updateProjectionMatrix();
+    }
   }
 
   private syncCamera(): void {

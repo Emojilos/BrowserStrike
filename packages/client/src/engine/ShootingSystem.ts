@@ -60,6 +60,9 @@ export class ShootingSystem {
   private lastShotTime = 0;
   private readonly SPREAD_RESET_TIME = 300; // ms before spread resets
 
+  // Scope state
+  private _scoped = false;
+
   // Current weapon
   private weaponId: WeaponId;
 
@@ -123,6 +126,10 @@ export class ShootingSystem {
 
   setOnReloadStart(cb: () => void): void {
     this.onReloadStart = cb;
+  }
+
+  setScoped(scoped: boolean): void {
+    this._scoped = scoped;
   }
 
   /** Start a reload if not already reloading and magazine is not full. */
@@ -209,6 +216,9 @@ export class ShootingSystem {
       spread = config.spread.moving;
     }
     spread += config.spread.sustained * this.consecutiveShots;
+    if (this._scoped && config.scope) {
+      spread *= config.scope.spreadMultiplier;
+    }
 
     // Build ray origin (eye position)
     const origin = new THREE.Vector3(

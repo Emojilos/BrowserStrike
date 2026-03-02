@@ -30,6 +30,8 @@ export class GameHUD {
   private scoreBEl!: HTMLElement;
   private timerEl!: HTMLElement;
   private spectatorEl!: HTMLElement;
+  private crosshairEl!: HTMLElement;
+  private scopeOverlayEl!: HTMLElement;
 
   constructor(parent: HTMLElement) {
     this.container = document.createElement('div');
@@ -80,6 +82,14 @@ export class GameHUD {
       <div class="hud-spectator" style="display:none;">
         Spectating: <span class="hud-spectator-name"></span>
       </div>
+
+      <!-- Scope overlay (hidden by default) -->
+      <div class="hud-scope-overlay" style="display:none;">
+        <div class="scope-vignette"></div>
+        <div class="scope-cross-h"></div>
+        <div class="scope-cross-v"></div>
+        <div class="scope-dot"></div>
+      </div>
     `;
 
     // Cache element references
@@ -92,6 +102,13 @@ export class GameHUD {
     this.scoreBEl = this.container.querySelector('.hud-score-b')!;
     this.timerEl = this.container.querySelector('.hud-timer')!;
     this.spectatorEl = this.container.querySelector('.hud-spectator')!;
+    this.crosshairEl = this.container.querySelector('.hud-crosshair')!;
+    this.scopeOverlayEl = this.container.querySelector('.hud-scope-overlay')!;
+  }
+
+  setScoped(scoped: boolean): void {
+    this.crosshairEl.style.display = scoped ? 'none' : '';
+    this.scopeOverlayEl.style.display = scoped ? '' : 'none';
   }
 
   update(state: HUDState): void {

@@ -22,7 +22,7 @@ import { CrosshairSettings } from './ui/CrosshairSettings';
 import { QualitySettings } from './engine/QualitySettings';
 import { GraphicsSettings } from './ui/GraphicsSettings';
 import { MouseSettings } from './ui/MouseSettings';
-import { PLAYER_HP, ROUND_TIME_LIMIT, DEFAULT_WEAPON, DEFAULT_MAP, WEAPON_IDS } from '@browserstrike/shared';
+import { PLAYER_HP, ROUND_TIME_LIMIT, DEFAULT_WEAPON, DEFAULT_MAP, WEAPON_IDS, WEAPONS } from '@browserstrike/shared';
 import type { InputMessage, ShootMessage, Team, GameMode, MapId, RoundsToWin, WeaponId, KillEvent, RoundEndEvent, MatchEndEvent } from '@browserstrike/shared';
 
 export enum AppState {
@@ -66,6 +66,9 @@ export class App {
   private qualitySettings: QualitySettings;
   private graphicsSettings: GraphicsSettings;
   private mouseSettings: MouseSettings;
+
+  // Scope state
+  private _scoped = false;
 
   // FPS tracking
   private fpsFrameCount = 0;
@@ -1019,10 +1022,30 @@ export class App {
 
   /** Switch weapon locally (model + shooting system) and notify server. */
   private switchToWeapon(weaponId: WeaponId): void {
+    this.exitScope();
     this.shootingSystem!.switchWeapon(weaponId);
     this.weaponModel!.switchWeapon(weaponId);
     this.network.send('selectWeapon', { weapon: weaponId });
     this.audioManager.playWeaponSwitch();
+  }
+
+  private enterScope(): void {
+    const config = WEAPONS[this.shootingSystem!.getWeaponId()];
+    if (!config.scope) return;
+    this._scoped = true;
+    this.fpsController!.setScoped(true, config.scope.fov);
+    this.shootingSystem!.setScoped(true);
+    this.gameHUD?.setScoped(true);
+    this.weaponModel?.setVisible(false);
+  }
+
+  private exitScope(): void {
+    if (!this._scoped) return;
+    this._scoped = false;
+    this.fpsController?.setScoped(false);
+    this.shootingSystem?.setScoped(false);
+    this.gameHUD?.setScoped(false);
+    this.weaponModel?.setVisible(true);
   }
 
   private animate = (now: number): void => {
@@ -1042,6 +1065,16 @@ export class App {
       // Handle weapon switching (1/2/3 keys or scroll wheel)
       if (fps.pointerLock.locked) {
         this.handleWeaponSwitch(fps);
+      }
+
+      // Scope: hold RMB to scope (only for weapons with scope config)
+      if (fps.pointerLock.locked) {
+        const wantScope = fps.input.mouse2Down && !!WEAPONS[shooting.getWeaponId()].scope;
+        if (wantScope && !this._scoped) {
+          this.enterScope();
+        } else if (!wantScope && this._scoped) {
+          this.exitScope();
+        }
       }
 
       // Handle R key for manual reload (audio played via onReloadStart callback)
@@ -1067,6 +1100,7 @@ export class App {
       this.audioManager.playFootstep(isMoving, fps.getPhysicsState().isGrounded, dt);
     } else {
       // While spectating, consume inputs without acting on them
+      this.exitScope();
       fps.input.consumeMouseDelta();
       fps.input.consumeReload();
       fps.input.consumeWeaponSlot();
@@ -1144,8 +1178,8 @@ export class App {
     }
 
     scene.render();
-    // Only render weapon overlay when not spectating (dead player shouldn't see own weapon)
-    if (!isSpectating) {
+    // Only render weapon overlay when not spectating and not scoped
+    if (!isSpectating && !this._scoped) {
       scene.renderOverlay(weapon.scene, weapon.camera);
     }
   };

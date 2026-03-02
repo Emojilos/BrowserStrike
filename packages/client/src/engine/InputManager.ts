@@ -16,6 +16,9 @@ export class InputManager {
   /** Whether the primary mouse button (LMB) is currently held */
   mouseDown = false;
 
+  /** Whether the secondary mouse button (RMB) is currently held */
+  mouse2Down = false;
+
   /** Whether the Tab key is currently held */
   tabHeld = false;
 
@@ -38,6 +41,7 @@ export class InputManager {
     document.addEventListener('mousemove', this.onMouseMove);
     document.addEventListener('mousedown', this.onMouseDown);
     document.addEventListener('mouseup', this.onMouseUp);
+    document.addEventListener('contextmenu', this.onContextMenu);
     document.addEventListener('wheel', this.onWheel, { passive: true });
   }
 
@@ -102,10 +106,16 @@ export class InputManager {
 
   private onMouseDown = (e: MouseEvent): void => {
     if (e.button === 0) this.mouseDown = true;
+    if (e.button === 2) this.mouse2Down = true;
   };
 
   private onMouseUp = (e: MouseEvent): void => {
     if (e.button === 0) this.mouseDown = false;
+    if (e.button === 2) this.mouse2Down = false;
+  };
+
+  private onContextMenu = (e: Event): void => {
+    e.preventDefault();
   };
 
   private onWheel = (e: WheelEvent): void => {
@@ -119,6 +129,7 @@ export class InputManager {
     document.removeEventListener('mousemove', this.onMouseMove);
     document.removeEventListener('mousedown', this.onMouseDown);
     document.removeEventListener('mouseup', this.onMouseUp);
+    document.removeEventListener('contextmenu', this.onContextMenu);
     document.removeEventListener('wheel', this.onWheel);
   }
 }
