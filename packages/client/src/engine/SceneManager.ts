@@ -11,8 +11,6 @@ export class SceneManager {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(0x1a1a2e);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     // Scene
     this.scene = new THREE.Scene();
@@ -42,15 +40,6 @@ export class SceneManager {
     // Main directional light (sun-like)
     const dirLight = new THREE.DirectionalLight(0xffeedd, 1.0);
     dirLight.position.set(10, 20, 10);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 2048;
-    dirLight.shadow.mapSize.height = 2048;
-    dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 60;
-    dirLight.shadow.camera.left = -25;
-    dirLight.shadow.camera.right = 25;
-    dirLight.shadow.camera.top = 25;
-    dirLight.shadow.camera.bottom = -25;
     this.scene.add(dirLight);
 
     // Fill light from opposite side

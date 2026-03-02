@@ -68,3 +68,33 @@ export function applyMovement(
 
   return { x, y, z, velocityY, isGrounded };
 }
+
+/**
+ * Maximum sub-step duration (seconds).
+ * At PLAYER_SPEED=6, each sub-step moves ≈0.1 units — well under
+ * the thinnest wall (0.4 units), preventing tunneling.
+ */
+const MAX_SUB_STEP = 1 / 60;
+
+/**
+ * Applies movement in sub-steps with collision resolution after each step.
+ * Prevents tunneling through walls at low framerates or high delta times.
+ */
+export function applyMovementStepped(
+  state: PhysicsState,
+  input: MovementInput,
+  dt: number,
+  resolve?: (state: PhysicsState) => PhysicsState,
+): PhysicsState {
+  let remaining = dt;
+  let s = state;
+
+  while (remaining > 1e-6) {
+    const step = Math.min(remaining, MAX_SUB_STEP);
+    s = applyMovement(s, input, step);
+    if (resolve) s = resolve(s);
+    remaining -= step;
+  }
+
+  return s;
+}

@@ -52,7 +52,6 @@ function buildProceduralMap(data: MapCollisionData): THREE.Group {
     MATERIALS.floor,
   );
   floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
   root.add(floor);
 
   // Visual boxes
@@ -65,8 +64,6 @@ function buildProceduralMap(data: MapCollisionData): THREE.Group {
       MATERIALS[v.material],
     );
     mesh.position.set(v.cx, v.cy, v.cz);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
     root.add(mesh);
   }
 
@@ -155,14 +152,6 @@ async function loadGLTFMap(mapId: MapId, path: string): Promise<MapLoadResult> {
   const gltf = await gltfLoader.loadAsync(path);
   const root = gltf.scene;
   root.name = `map_${mapId}`;
-
-  // Enable shadows on all visible meshes
-  root.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      child.castShadow = true;
-      child.receiveShadow = true;
-    }
-  });
 
   // Extract collision boxes from meshes with _collision naming
   const collisionBoxes = extractCollisionsFromGLTF(root);

@@ -173,12 +173,10 @@ export class RemotePlayerManager {
     // Head
     const head = new THREE.Mesh(geo.head, headMat);
     head.position.y = HEAD_Y;
-    head.castShadow = true;
 
     // Torso
     const torso = new THREE.Mesh(geo.torso, bodyMat.clone());
     torso.position.y = TORSO_Y;
-    torso.castShadow = true;
 
     // Arms
     const armMat = bodyMat.clone();
@@ -187,27 +185,22 @@ export class RemotePlayerManager {
 
     const armL = new THREE.Mesh(geo.arm, armMat);
     armL.position.set(-ARM_X, ARM_Y, 0);
-    armL.castShadow = true;
 
     const armR = new THREE.Mesh(geo.arm, armMat.clone());
     armR.position.set(ARM_X, ARM_Y, 0);
-    armR.castShadow = true;
 
     // Legs
     const legMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2a }); // dark pants
 
     const legL = new THREE.Mesh(geo.leg, legMat);
     legL.position.set(-LEG_X, LEG_Y, 0);
-    legL.castShadow = true;
 
     const legR = new THREE.Mesh(geo.leg, legMat.clone());
     legR.position.set(LEG_X, LEG_Y, 0);
-    legR.castShadow = true;
 
     // Weapon in right hand
     const weaponGroup = buildWeaponGroup('deagle');
     weaponGroup.position.set(ARM_X, ARM_Y - ARM_LENGTH / 2, -0.12);
-    weaponGroup.castShadow = true;
 
     const group = new THREE.Group();
     group.add(head);

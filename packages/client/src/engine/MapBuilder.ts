@@ -17,7 +17,6 @@ export function buildWarehouseMap(scene: THREE.Scene): CollisionWorld {
     floorMat,
   );
   floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
   scene.add(floor);
 
   // --- Walls ---
@@ -37,8 +36,6 @@ export function buildWarehouseMap(scene: THREE.Scene): CollisionWorld {
       wallMat,
     );
     wall.position.set(x, y, z);
-    wall.castShadow = true;
-    wall.receiveShadow = true;
     scene.add(wall);
     collisionWorld.addBox(x, y, z, width / 2, height / 2, depth / 2);
   }
@@ -69,8 +66,6 @@ export function buildWarehouseMap(scene: THREE.Scene): CollisionWorld {
       mat ?? crateMat,
     );
     crate.position.set(x, h / 2, z);
-    crate.castShadow = true;
-    crate.receiveShadow = true;
     scene.add(crate);
     collisionWorld.addBox(x, h / 2, z, w / 2, h / 2, d / 2);
   }

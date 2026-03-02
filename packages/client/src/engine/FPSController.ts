@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { EYE_HEIGHT, applyMovement, type PhysicsState } from '@browserstrike/shared';
+import { EYE_HEIGHT, applyMovementStepped, type PhysicsState } from '@browserstrike/shared';
 import { InputManager } from './InputManager';
 import { PointerLock } from './PointerLock';
 import type { CollisionWorld } from './CollisionWorld';
@@ -79,17 +79,13 @@ export class FPSController {
     this.physics.z = this.position.z;
 
     // Apply shared movement physics (gravity, jump, horizontal move)
-    this.physics = applyMovement(this.physics, {
-      forward,
-      right,
-      jump: keys.space,
-      yaw: this.yaw,
-    }, dt);
-
-    // Resolve collisions with map geometry
-    if (this.collisionWorld) {
-      this.physics = this.collisionWorld.resolve(this.physics);
-    }
+    // Sub-stepped to prevent tunneling through walls at low framerates
+    this.physics = applyMovementStepped(
+      this.physics,
+      { forward, right, jump: keys.space, yaw: this.yaw },
+      dt,
+      this.collisionWorld ? (s) => this.collisionWorld!.resolve(s) : undefined,
+    );
 
     this.position.set(this.physics.x, this.physics.y, this.physics.z);
   }

@@ -9,7 +9,7 @@ import {
   MAX_NICKNAME_LENGTH,
   TICK_RATE,
   EYE_HEIGHT,
-  applyMovement,
+  applyMovementStepped,
 } from '@browserstrike/shared';
 import type {
   InputMessage,
@@ -393,8 +393,8 @@ export class GameRoom extends Room<GameState> {
       const forward = (message.keys.w ? 1 : 0) - (message.keys.s ? 1 : 0);
       const right = (message.keys.d ? 1 : 0) - (message.keys.a ? 1 : 0);
 
-      // Apply movement physics (same shared function as client)
-      const physState = applyMovement(
+      // Apply movement physics with sub-stepping (prevents tunneling through walls)
+      const resolved = applyMovementStepped(
         {
           x: player.x,
           y: player.y,
@@ -409,10 +409,8 @@ export class GameRoom extends Room<GameState> {
           yaw: message.yaw,
         },
         message.deltaTime,
+        (s) => this.collisionWorld.resolve(s),
       );
-
-      // Resolve collisions
-      const resolved = this.collisionWorld.resolve(physState);
 
       // Speed hack detection: check if resulting position is plausible
       this.antiCheat.checkSpeedHack(

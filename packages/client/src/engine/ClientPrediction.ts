@@ -1,4 +1,4 @@
-import { applyMovement, type PhysicsState, type MovementInput } from '@browserstrike/shared';
+import { applyMovementStepped, type PhysicsState, type MovementInput } from '@browserstrike/shared';
 import type { CollisionWorld } from './CollisionWorld';
 
 /** Stored input for replay during reconciliation. */
@@ -83,10 +83,12 @@ export class ClientPrediction {
     };
 
     for (const pending of this.pendingInputs) {
-      replayState = applyMovement(replayState, pending.input, pending.deltaTime);
-      if (this.collisionWorld) {
-        replayState = this.collisionWorld.resolve(replayState);
-      }
+      replayState = applyMovementStepped(
+        replayState,
+        pending.input,
+        pending.deltaTime,
+        this.collisionWorld ? (s) => this.collisionWorld!.resolve(s) : undefined,
+      );
     }
 
     // 3. Compare replayed position with current local prediction
